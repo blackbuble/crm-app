@@ -11,6 +11,8 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class FollowUpResource extends Resource
 {
@@ -31,7 +33,19 @@ class FollowUpResource extends Resource
                             ->relationship('customer', 'name')
                             ->searchable()
                             ->preload()
-                            ->required(),
+                            ->required()
+                            // Optional: Filter customers by assigned_to
+                            ->getSearchResultsUsing(fn (string $search): array => 
+                                Customer::query()
+                                    ->where('name', 'like', "%{$search}%")
+                                    ->where('assigned_to', Auth::id())
+                                    ->limit(50)
+                                    ->pluck('name', 'id')
+                                    ->toArray()
+                            )
+                            ->getOptionLabelUsing(fn ($value): ?string => 
+                                Customer::find($value)?->name
+                            ),
                         
                         Forms\Components\Select::make('type')
                             ->options([
@@ -79,6 +93,12 @@ class FollowUpResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => 
+                // Filter follow-ups where customer's assigned_to matches current user
+                $query->whereHas('customer', function ($q) {
+                    $q->where('assigned_to', Auth::id());
+                })
+            )
             ->columns([
                 Tables\Columns\TextColumn::make('customer.name')
                     ->searchable()
@@ -106,7 +126,7 @@ class FollowUpResource extends Resource
                 
                 Tables\Columns\SpatieTagsColumn::make('tags'),
                 
-                Tables\Columns\TextColumn::make('user.name')
+                Tables\Columns\TextColumn::make('customer.assignedUser.name')
                     ->label('Assigned To')
                     ->badge(),
             ])
@@ -119,6 +139,11 @@ class FollowUpResource extends Resource
                 Tables\Filters\Filter::make('overdue')
                     ->query(fn ($query) => $query->where('status', 'pending')->where('follow_up_date', '<', today()))
                     ->label('Overdue'),
+                // Optional: Filter by customer's assigned_to if you want flexibility
+                Tables\Filters\SelectFilter::make('assigned_to')
+                    ->relationship('customer.assignedUser', 'name')
+                    ->label('Filter by Assigned User')
+                    ->preload(),
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
@@ -145,5 +170,19 @@ class FollowUpResource extends Resource
             'create' => Pages\CreateFollowUp::route('/create'),
             'edit' => Pages\EditFollowUp::route('/{record}/edit'),
         ];
+    }
+
+    // Optional: Display count badge in navigation for current user's follow-ups
+    public static function getNavigationBadge(): ?string
+    {
+        if (Auth::check()) {
+            return (string) FollowUp::whereHas('customer', function ($q) {
+                $q->where('assigned_to', Auth::id());
+            })
+            ->where('status', 'pending')
+            ->count();
+        }
+        
+        return null;
     }
 }

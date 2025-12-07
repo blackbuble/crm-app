@@ -17,7 +17,7 @@ use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use App\Exports\CustomersExport;
 use Maatwebsite\Excel\Facades\Excel;
-
+use Illuminate\Support\Facades\Auth;
 class CustomerResource extends Resource
 {
     protected static ?string $model = Customer::class;
@@ -404,5 +404,18 @@ class CustomerResource extends Resource
             'edit' => Pages\EditCustomer::route('/{record}/edit'),
             'kanban' => Pages\CustomerKanban::route('/kanban'),
         ];
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        if (Auth::check()) {
+            return (string) Customer::whereHas('assignedUser', function ($q) {
+                $q->where('assigned_to', Auth::id());
+            })
+            ->where('status', 'lead')
+            ->count();
+        }
+        
+        return null;
     }
 }
