@@ -5,16 +5,39 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Tags\HasTags;
 
 class Customer extends Model
 {
     use SoftDeletes, HasTags;
 
+    // app/Models/Customer.php
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($customer) {
+            if ($customer->type === 'personal') {
+                $customer->name = $customer->first_name . ' ' . $customer->last_name;
+            } elseif ($customer->type === 'company') {
+                $customer->name = $customer->company_name;
+            }
+        });
+
+        static::updating(function ($customer) {
+            if ($customer->type === 'personal') {
+                $customer->name = $customer->first_name . ' ' . $customer->last_name;
+            } elseif ($customer->type === 'company') {
+                $customer->name = $customer->company_name;
+            }
+        });
+    }
+
     protected $fillable = [
         'type', 'name', 'email', 'phone', 'address',
         'company_name', 'tax_id', 'first_name', 'last_name',
-        'notes', 'status'
+        'notes', 'status', 'assigned_to', 'assigned_at',
     ];
 
     protected $casts = [
@@ -37,5 +60,15 @@ class Customer extends Model
         return $this->type === 'company' 
             ? $this->company_name 
             : "{$this->first_name} {$this->last_name}";
+    }
+
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(CustomerAssignment::class);
     }
 }

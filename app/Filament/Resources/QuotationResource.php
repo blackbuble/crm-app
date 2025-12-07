@@ -10,6 +10,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Exports\QuotationsExport;
 
 class QuotationResource extends Resource
 {
@@ -184,6 +185,29 @@ class QuotationResource extends Resource
                     ->relationship('customer', 'name')
                     ->searchable()
                     ->preload(),
+            ])
+            ->headerActions([
+                Tables\Actions\Action::make('export')
+                    ->label('Export Excel')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('success')
+                    ->action(function ($livewire) {
+                        $filters = [];
+                        
+                        if ($livewire->tableFilters) {
+                            if (isset($livewire->tableFilters['status']['value'])) {
+                                $filters['status'] = $livewire->tableFilters['status']['value'];
+                            }
+                            if (isset($livewire->tableFilters['customer']['value'])) {
+                                $filters['customer_id'] = $livewire->tableFilters['customer']['value'];
+                            }
+                        }
+                        
+                        return Excel::download(
+                            new QuotationsExport($filters), 
+                            'quotations-' . now()->format('Y-m-d') . '.xlsx'
+                        );
+                    }),
             ])
             ->actions([
                 Tables\Actions\Action::make('pdf')
