@@ -7,9 +7,12 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 use Illuminate\Database\Eloquent\Builder;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class RecentCustomersWidget extends BaseWidget
 {
+    use HasWidgetShield;
+    
     protected static ?int $sort = 4;
     protected int | string | array $columnSpan = 'full';
 

@@ -7,9 +7,13 @@ use App\Models\FollowUp;
 use App\Models\Quotation;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class CustomerStatsWidget extends BaseWidget
 {
+    use HasWidgetShield;
+    protected ?string $heading = 'Customer Statistics';
+    
     protected function getStats(): array
     {
         $totalCustomers = Customer::count();
@@ -56,7 +60,7 @@ class CustomerStatsWidget extends BaseWidget
                 ->descriptionIcon($overdueFollowUps > 0 ? 'heroicon-m-exclamation-triangle' : 'heroicon-m-check-circle')
                 ->color($overdueFollowUps > 0 ? 'warning' : 'success'),
             
-            Stat::make('Total Quotations', 'Rp ' . number_format($totalQuotations, 0, ',', '.'))
+            Stat::make('Total Quotations', format_currency($totalQuotations))
                 ->description("{$conversionRate}% conversion rate")
                 ->descriptionIcon('heroicon-m-currency-dollar')
                 ->color('success')

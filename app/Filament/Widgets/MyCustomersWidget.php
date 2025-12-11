@@ -6,9 +6,12 @@ use App\Models\Customer;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class MyCustomersWidget extends BaseWidget
 {
+    use HasWidgetShield;
+    
     protected static ?int $sort = 5;
     protected int | string | array $columnSpan = 'full';
 

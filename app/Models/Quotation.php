@@ -27,21 +27,7 @@ class Quotation extends Model
         'total' => 'decimal:2',
     ];
 
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(function ($quotation) {
-            if (empty($quotation->quotation_number)) {
-                $quotation->quotation_number = self::generateQuotationNumber();
-            }
-
-              // Auto-set user_id if not provided
-            if (empty($quotation->user_id) && auth()->check()) {
-                $quotation->user_id = auth()->id();
-            }
-        });
-    }
+    // Boot method removed - logic moved to QuotationObserver
 
     public static function generateQuotationNumber(): string
     {

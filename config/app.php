@@ -86,6 +86,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Currency
+    |--------------------------------------------------------------------------
+    |
+    | This value determines the default currency used throughout the application.
+    | Supported: IDR, USD, EUR, GBP, JPY, SGD, MYR
+    |
+    */
+
+    'currency' => env('APP_CURRENCY', 'IDR'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Encryption Key
     |--------------------------------------------------------------------------
     |

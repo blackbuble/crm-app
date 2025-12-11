@@ -8,16 +8,7 @@ use Illuminate\Support\Carbon;
 
 class KpiTarget extends Model
 {
-    protected static function boot()
-    {
-        parent::boot();
-        
-        static::creating(function ($model) {
-            if (auth()->check()) {
-                $model->created_by = auth()->id();
-            }
-        });
-    }
+    // Boot method removed - logic moved to KpiTargetObserver
 
     protected $fillable = [
         'user_id',

@@ -5,9 +5,12 @@ namespace App\Filament\Widgets;
 use App\Models\Customer;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Carbon;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class CustomerChartWidget extends ChartWidget
 {
+    use HasWidgetShield;
+    
     protected static ?string $heading = 'Customer Growth';
     protected static ?int $sort = 2;
 

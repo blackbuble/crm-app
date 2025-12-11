@@ -72,7 +72,7 @@ class CustomersExport implements FromCollection, WithHeadings, WithMapping, With
             $customer->tags->pluck('name')->implode(', '),
             $customer->followUps->count(),
             $customer->quotations->count(),
-            'Rp ' . number_format($customer->quotations->sum('total'), 0, ',', '.'),
+            format_currency($customer->quotations->sum('total')),
             $customer->created_at->format('Y-m-d H:i:s'),
         ];
     }

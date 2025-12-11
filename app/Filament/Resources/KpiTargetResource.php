@@ -85,9 +85,9 @@ class KpiTargetResource extends Resource
                 Forms\Components\Section::make('Revenue & Customer Targets')
                     ->schema([
                         Forms\Components\TextInput::make('revenue_target')
-                            ->label('Revenue Target (Rp)')
+                            ->label('Revenue Target (' . get_currency_symbol() . ')')
                             ->numeric()
-                            ->prefix('Rp')
+                            ->prefix(get_currency_symbol())
                             ->required()
                             ->default(0),
                         

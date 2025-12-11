@@ -1,5 +1,5 @@
 <?php
-// app/Filament/Widgets/KpiWidget.php
+// app/Filament/Widgets/KpiWidget.php - Updated with role-based visibility
 namespace App\Filament\Widgets;
 
 use App\Models\Customer;
@@ -8,10 +8,14 @@ use App\Models\Quotation;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Carbon;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class KpiWidget extends BaseWidget
 {
+    use HasWidgetShield;
+    
     protected static ?int $sort = 0;
+    protected ?string $heading = 'Key Performance Indicators';
     
     protected function getStats(): array
     {
@@ -128,18 +132,18 @@ class KpiWidget extends BaseWidget
                 ->descriptionIcon('heroicon-m-trophy')
                 ->color($winRate >= 30 ? 'success' : 'warning'),
             
-            Stat::make('Avg Deal Size', 'Rp ' . number_format($avgDealSize, 0, ',', '.'))
+            Stat::make('Avg Deal Size', format_currency($avgDealSize))
                 ->description("This month")
                 ->descriptionIcon('heroicon-m-currency-dollar')
                 ->color('info'),
             
-            Stat::make('Pipeline Value', 'Rp ' . number_format($pipelineValue, 0, ',', '.'))
+            Stat::make('Pipeline Value', format_currency($pipelineValue))
                 ->description("Active quotations")
                 ->descriptionIcon('heroicon-m-funnel')
                 ->color('info')
                 ->chart([5, 7, 9, 12, 15, 18, 22, 25]),
             
-            Stat::make('Revenue This Month', 'Rp ' . number_format($acceptedQuotationsValue, 0, ',', '.'))
+            Stat::make('Revenue This Month', format_currency($acceptedQuotationsValue))
                 ->description("From {$acceptedCount} deals")
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('success')
@@ -152,8 +156,8 @@ class KpiWidget extends BaseWidget
         $user = auth()->user();
         $query = Customer::query();
         
-        // If not super admin, show only assigned customers
-        if (!$user->hasRole('super_admin')) {
+        // Show all customers for admin/manager roles
+        if (!$user->hasAnyRole(['super_admin', 'sales_manager'])) {
             $query->where('assigned_to', $user->id);
         }
         
@@ -165,7 +169,7 @@ class KpiWidget extends BaseWidget
         $user = auth()->user();
         $query = FollowUp::query();
         
-        if (!$user->hasRole('super_admin')) {
+        if (!$user->hasAnyRole(['super_admin', 'sales_manager'])) {
             $query->where('user_id', $user->id);
         }
         
@@ -177,7 +181,7 @@ class KpiWidget extends BaseWidget
         $user = auth()->user();
         $query = Quotation::query();
         
-        if (!$user->hasRole('super_admin')) {
+        if (!$user->hasAnyRole(['super_admin', 'sales_manager'])) {
             $query->where('user_id', $user->id);
         }
         

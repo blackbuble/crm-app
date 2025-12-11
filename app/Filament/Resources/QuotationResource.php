@@ -78,14 +78,14 @@ class QuotationResource extends Resource
                                 Forms\Components\TextInput::make('unit_price')
                                     ->numeric()
                                     ->required()
-                                    ->prefix('Rp')
+                                ->prefix(get_currency_symbol())
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
                                         $set('total', $state * $get('quantity'));
                                     }),
                                 Forms\Components\TextInput::make('total')
                                     ->numeric()
-                                    ->prefix('Rp')
+                                ->prefix(get_currency_symbol())
                                     ->disabled()
                                     ->dehydrated(),
                             ])
@@ -105,19 +105,19 @@ class QuotationResource extends Resource
                         Forms\Components\TextInput::make('discount')
                             ->numeric()
                             ->default(0)
-                            ->prefix('Rp')
+                            ->prefix(get_currency_symbol())
                             ->live(onBlur: true),
                         Forms\Components\Placeholder::make('subtotal')
                             ->content(function ($get) {
                                 $items = $get('items') ?? [];
-                                return 'Rp' . number_format(collect($items)->sum('total'), 2);
+                                return format_currency(collect($items)->sum('total'), null, 2);
                             }),
                         Forms\Components\Placeholder::make('tax_amount')
                             ->content(function ($get) {
                                 $items = $get('items') ?? [];
                                 $subtotal = collect($items)->sum('total');
                                 $taxAmount = ($subtotal * ($get('tax_percentage') ?? 0)) / 100;
-                                return 'Rp' . number_format($taxAmount, 2);
+                                return format_currency($taxAmount, null, 2);
                             }),
                         Forms\Components\Placeholder::make('grand_total')
                             ->content(function ($get) {
@@ -125,7 +125,7 @@ class QuotationResource extends Resource
                                 $subtotal = collect($items)->sum('total');
                                 $taxAmount = ($subtotal * ($get('tax_percentage') ?? 0)) / 100;
                                 $total = $subtotal + $taxAmount - ($get('discount') ?? 0);
-                                return 'Rp' . number_format($total, 2);
+                                return format_currency($total, null, 2);
                             }),
                     ])
                     ->columns(2),
@@ -156,7 +156,7 @@ class QuotationResource extends Resource
                     ->date()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('total')
-                    ->formatStateUsing(fn ($state) => 'Rp ' . number_format($state, 0, ',', '.'))
+                    ->formatStateUsing(fn ($state) => format_currency($state))
                     ->sortable(),
                 Tables\Columns\BadgeColumn::make('status')
                     ->colors([

@@ -4,9 +4,12 @@ namespace App\Filament\Widgets;
 
 use App\Models\Customer;
 use Filament\Widgets\ChartWidget;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class CustomerStatusWidget extends ChartWidget
 {
+    use HasWidgetShield;
+    
     protected static ?string $heading = 'Customer by Status';
     protected static ?int $sort = 3;
 

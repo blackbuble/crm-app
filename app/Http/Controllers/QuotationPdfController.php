@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Quotation;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class QuotationPdfController extends Controller
 {
-    public function generate(Quotation $quotation)
+    public function generate(Quotation $quotation): Response
     {
         $quotation->load(['customer', 'items']);
         

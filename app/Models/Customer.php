@@ -13,26 +13,7 @@ class Customer extends Model
     use SoftDeletes, HasTags;
 
     // app/Models/Customer.php
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(function ($customer) {
-            if ($customer->type === 'personal') {
-                $customer->name = $customer->first_name . ' ' . $customer->last_name;
-            } elseif ($customer->type === 'company') {
-                $customer->name = $customer->company_name;
-            }
-        });
-
-        static::updating(function ($customer) {
-            if ($customer->type === 'personal') {
-                $customer->name = $customer->first_name . ' ' . $customer->last_name;
-            } elseif ($customer->type === 'company') {
-                $customer->name = $customer->company_name;
-            }
-        });
-    }
+    // Boot method removed - logic moved to CustomerObserver
 
     protected $fillable = [
         'type', 'name', 'email', 'phone', 'address',
