@@ -38,9 +38,14 @@ class CustomerCreatedNotification extends Notification
         if ($this->type === 'assigned') {
             $data['title'] = 'New Customer Assigned';
             $data['body'] = "You have been assigned a new customer: {$this->customer->name}";
-        } else { // manager
-            $data['title'] = 'Customer Assigned to Team Member';
-            $data['body'] = "{$this->customer->name} has been assigned to {$this->customer->assignedUser->name}";
+        } else { // manager or admin (if unassigned)
+            $data['title'] = 'New Customer Created';
+            if ($this->customer->assignedUser) {
+                $data['title'] = 'Customer Assigned to Team Member';
+                $data['body'] = "{$this->customer->name} has been assigned to {$this->customer->assignedUser->name}";
+            } else {
+                $data['body'] = "New unassigned customer created: {$this->customer->name}";
+            }
             $data['iconColor'] = 'info';
         }
 

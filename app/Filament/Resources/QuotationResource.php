@@ -54,6 +54,19 @@ class QuotationResource extends Resource
                             ->required()
                             ->default('draft')
                             ->native(false),
+                            
+                        Forms\Components\Select::make('exhibition_id')
+                            ->label('Exhibition (Optional)')
+                            ->relationship('exhibition', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->columnSpan(1),
+                            
+                        Forms\Components\Toggle::make('is_on_the_spot')
+                            ->label('Closing On The Spot')
+                            ->helperText('Deal closed immediately at event')
+                            ->inline(false)
+                            ->columnSpan(1),
                     ])
                     ->columns(2),
 
@@ -158,13 +171,15 @@ class QuotationResource extends Resource
                 Tables\Columns\TextColumn::make('total')
                     ->formatStateUsing(fn ($state) => format_currency($state))
                     ->sortable(),
-                Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'secondary' => 'draft',
-                        'info' => 'sent',
-                        'success' => 'accepted',
-                        'danger' => 'rejected',
-                    ]),
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'draft' => 'secondary',
+                        'sent' => 'info',
+                        'accepted' => 'success',
+                        'rejected' => 'danger',
+                        default => 'gray',
+                    }),
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Created by')
                     ->toggleable(),

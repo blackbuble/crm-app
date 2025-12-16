@@ -12,13 +12,16 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements FilamentUser
 {
-    use Notifiable, HasRoles;
+    use Notifiable, HasRoles, \App\Traits\HashIdTrait, \Illuminate\Database\Eloquent\Factories\HasFactory;
 
     protected $fillable = [
         'name',
         'email',
         'password',
         'manager_id',
+        'country',
+        'country_code',
+        'area',
     ];
 
     protected $hidden = [

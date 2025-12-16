@@ -9,12 +9,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Quotation extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, \App\Traits\HashIdTrait, \Illuminate\Database\Eloquent\Factories\HasFactory;
 
     protected $fillable = [
         'quotation_number', 'customer_id', 'user_id', 'quotation_date',
         'valid_until', 'subtotal', 'tax_percentage', 'tax_amount',
-        'discount', 'total', 'notes', 'status'
+        'discount', 'total', 'notes', 'status', 
+        'exhibition_id', 'is_on_the_spot',
     ];
 
     protected $casts = [
@@ -62,7 +63,11 @@ class Quotation extends Model
         $this->subtotal = $this->items->sum('total');
         $this->tax_amount = ($this->subtotal * $this->tax_percentage) / 100;
         $this->total = $this->subtotal + $this->tax_amount - $this->discount;
-        $this->save();
+    }
+
+    public function exhibition(): BelongsTo
+    {
+        return $this->belongsTo(Exhibition::class);
     }
 }
 

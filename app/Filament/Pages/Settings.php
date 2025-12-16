@@ -78,7 +78,8 @@ class Settings extends Page implements HasForms
                         FileUpload::make('company_logo')
                             ->label('Company Logo')
                             ->image()
-                            ->directory('settings/company')
+                            ->disk('public')
+                            ->directory('logo')
                             ->visibility('public')
                             ->helperText('Upload your company logo (max 2MB). Recommended: 300x300px')
                             ->maxSize(2048)
@@ -89,12 +90,14 @@ class Settings extends Page implements HasForms
                                 fn ($file) => 'company-logo.' . $file->getClientOriginalExtension()
                             )
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/jpg'])
-                            ->preserveFilenames()
                             ->panelAspectRatio('1:1')
                             ->panelLayout('integrated')
                             ->removeUploadedFileButtonPosition('center bottom')
                             ->uploadButtonPosition('center bottom')
-                            ->uploadProgressIndicatorPosition('center bottom'),
+                            ->uploadProgressIndicatorPosition('center bottom')
+                            ->imagePreviewHeight('150')
+                            ->loadingIndicatorPosition('center')
+                            ->downloadable(),
                         
                         TextInput::make('company_name')
                             ->label('Company Name')

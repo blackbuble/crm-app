@@ -24,7 +24,7 @@ class CustomerKanban extends Page
                 ->get()
                 ->map(function ($customer) {
                     return [
-                        'id' => $customer->id,
+                        'id' => $customer->getRouteKey(),
                         'name' => $customer->display_name ?? $customer->name,
                         'email' => $customer->email,
                         'phone' => $customer->phone,
@@ -42,9 +42,13 @@ class CustomerKanban extends Page
         return $data;
     }
 
-    public function updateCustomerStatus(int $customerId, string $newStatus): void
+    public function updateCustomerStatus($customerId, string $newStatus): void
     {
-        Customer::find($customerId)->update(['status' => $newStatus]);
-        $this->dispatch('customer-updated');
+        $customer = (new Customer())->resolveRouteBinding($customerId);
+        
+        if ($customer) {
+            $customer->update(['status' => $newStatus]);
+            $this->dispatch('customer-updated');
+        }
     }
 }

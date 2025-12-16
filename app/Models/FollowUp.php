@@ -8,7 +8,7 @@ use Spatie\Tags\HasTags;
 
 class FollowUp extends Model
 {
-    use HasTags;
+    use HasTags, \App\Traits\HashIdTrait;
 
     protected $fillable = [
         'customer_id', 'user_id', 'type', 'follow_up_date',

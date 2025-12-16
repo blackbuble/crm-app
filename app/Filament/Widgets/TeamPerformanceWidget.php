@@ -26,7 +26,7 @@ class TeamPerformanceWidget extends BaseWidget
             ->query(
                 User::query()
                     ->whereHas('roles', function($q) {
-                        $q->whereIn('name', ['sales_rep', 'sales_manager']);
+                        $q->whereIn('name', ['sales_rep', 'sales_manager', 'country_manager']);
                     })
                     ->with(['assignedCustomers', 'quotations'])
                     ->withCount('assignedCustomers') // Add this to enable sorting

@@ -39,13 +39,15 @@ class RecentCustomersWidget extends BaseWidget
                     ->searchable()
                     ->toggleable(),
                 
-                Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'warning' => 'lead',
-                        'info' => 'prospect',
-                        'success' => 'customer',
-                        'danger' => 'inactive',
-                    ]),
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'lead' => 'warning',
+                        'prospect' => 'info',
+                        'customer' => 'success',
+                        'inactive' => 'danger',
+                        default => 'gray',
+                    }),
                 
                 Tables\Columns\TextColumn::make('assigned_user.name')
                     ->label('Assigned To')

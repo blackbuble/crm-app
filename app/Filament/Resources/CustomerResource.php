@@ -16,6 +16,7 @@ use Filament\Tables\Table;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use App\Exports\CustomersExport;
+use App\Exports\CustomersTemplateExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Auth;
 
@@ -104,14 +105,37 @@ class CustomerResource extends Resource
                 ->visible(fn (Forms\Get $get) => $get('type') === 'company')
                 ->columns(2),
 
+
             Forms\Components\Section::make('Contact Information')
                 ->schema([
+                    Forms\Components\Select::make('country')
+                        ->label('Country')
+                        ->options(get_countries())
+                        ->searchable()
+                        ->live()
+                        ->afterStateUpdated(function ($state, $set) {
+                            // Auto-set country code based on country using helper function
+                            $dialCode = get_dial_code_by_country($state);
+                            if ($dialCode) {
+                                $set('country_code', $dialCode);
+                            }
+                        }),
+                    
+                    Forms\Components\Select::make('country_code')
+                        ->label('Country Code')
+                        ->options(get_country_codes())
+                        ->searchable()
+                        ->helperText('Phone country code for WhatsApp'),
+                    
                     Forms\Components\TextInput::make('email')
                         ->email()
                         ->maxLength(255),
+                    
                     Forms\Components\TextInput::make('phone')
                         ->tel()
-                        ->maxLength(255),
+                        ->maxLength(255)
+                        ->helperText('Enter phone number without country code'),
+                    
                     Forms\Components\Textarea::make('address')
                         ->rows(3)
                         ->columnSpanFull(),
@@ -130,6 +154,20 @@ class CustomerResource extends Resource
                         ->required()
                         ->default('lead'),
                     
+                    Forms\Components\Select::make('source')
+                        ->label('Acquisition Source')
+                        ->options([
+                            'Meta Ads' => 'Meta Ads (FB/IG)',
+                            'Google Ads' => 'Google Ads',
+                            'TikTok Ads' => 'TikTok Ads',
+                            'LinkedIn Ads' => 'LinkedIn Ads',
+                            'Twitter Ads' => 'Twitter/X Ads',
+                            'Organic' => 'Organic',
+                            'Referral' => 'Referral',
+                            'Other' => 'Other',
+                        ])
+                        ->searchable(),
+                    
                     Forms\Components\Select::make('assigned_to')
                         ->label('Assign To')
                         ->relationship('assignedUser', 'name')
@@ -142,12 +180,58 @@ class CustomerResource extends Resource
                             $set('assigned_at', now());
                         }),
                     
+                    Forms\Components\Select::make('exhibition_id')
+                        ->label('Exhibition Source')
+                        ->relationship('exhibition', 'name')
+                        ->searchable()
+                        ->preload()
+                        ->helperText('If obtained from an event'),
+
                     Forms\Components\SpatieTagsInput::make('tags'),
                     
                     Forms\Components\Textarea::make('notes')
                         ->rows(4)
                         ->columnSpanFull(),
                 ])
+                ->columns(2),
+
+            Forms\Components\Section::make('Marketing Data')
+                ->schema([
+                    Forms\Components\TextInput::make('utm_source')
+                        ->label('Source (UTM)')
+                        ->disabled(),
+                    Forms\Components\TextInput::make('utm_medium')
+                        ->label('Medium (UTM)')
+                        ->disabled(),
+                    Forms\Components\TextInput::make('utm_campaign')
+                        ->label('Campaign (UTM)')
+                        ->disabled(),
+                    Forms\Components\TextInput::make('utm_content')
+                        ->label('Content (UTM)')
+                        ->disabled(),
+                    Forms\Components\TextInput::make('utm_term')
+                        ->label('Term (UTM)')
+                        ->disabled(),
+                    Forms\Components\TextInput::make('gclid')
+                        ->label('Google Click ID (GCLID)')
+                        ->disabled()
+                        ->columnSpan(1),
+                    Forms\Components\TextInput::make('gad_source')
+                        ->label('GAD Source')
+                        ->helperText('Google Ads Source')
+                        ->disabled()
+                        ->columnSpan(1),
+                    Forms\Components\TextInput::make('gbraid')
+                        ->label('GBRAID')
+                        ->helperText('Web-to-App Measurement')
+                        ->disabled()
+                        ->columnSpan(2),
+                    Forms\Components\TextInput::make('fbclid')
+                        ->label('Facebook Click ID')
+                        ->disabled()
+                        ->columnSpan(2),
+                ])
+                ->collapsed()
                 ->columns(2),
         ];
     }
@@ -177,13 +261,15 @@ class CustomerResource extends Resource
                 ->iconColor('success')
                 ->url(fn (Customer $record) => $record->phone ? "tel:{$record->phone}" : null),
             
-            Tables\Columns\BadgeColumn::make('status')
-                ->colors([
-                    'warning' => 'lead',
-                    'info' => 'prospect',
-                    'success' => 'customer',
-                    'danger' => 'inactive',
-                ]),
+            Tables\Columns\TextColumn::make('status')
+                ->badge()
+                ->color(fn (string $state): string => match ($state) {
+                    'lead' => 'warning',
+                    'prospect' => 'info',
+                    'customer' => 'success',
+                    'inactive' => 'danger',
+                    default => 'gray',
+                }),
             
             Tables\Columns\TextColumn::make('assignedUser.name')
                 ->label('Assigned To')
@@ -192,7 +278,7 @@ class CustomerResource extends Resource
                 ->sortable()
                 ->toggleable(),
             
-            Tables\Columns\SpatieTagsColumn::make('tags'),
+            Tables\Columns\SpatieTagsColumn::make('tags'), // Ensure plugin is installed or replace if needed
             
             Tables\Columns\TextColumn::make('followUps_count')
                 ->counts('followUps')
@@ -243,13 +329,8 @@ class CustomerResource extends Resource
                     ->icon('heroicon-o-chat-bubble-left-right')
                     ->color('success')
                     ->url(function (Customer $record) {
-                        if (!$record->phone) return null;
-                        $phone = preg_replace('/[^0-9]/', '', $record->phone);
-                        if (substr($phone, 0, 1) === '0') {
-                            $phone = '62' . substr($phone, 1);
-                        }
-                        $message = urlencode("Hi {$record->name}, this is a follow-up regarding our previous discussion.");
-                        return "https://wa.me/{$phone}?text={$message}";
+                        $message = "Hi {$record->name}, this is a follow-up regarding our previous discussion.";
+                        return get_whatsapp_url($record->phone, $record->country_code, $message);
                     })
                     ->openUrlInNewTab()
                     ->visible(fn (Customer $record) => !empty($record->phone)),
@@ -376,6 +457,18 @@ class CustomerResource extends Resource
     public static function getTableHeaderActions(): array
     {
         return [
+            Tables\Actions\Action::make('download_template')
+                ->label('Download Template')
+                ->icon('heroicon-o-document-arrow-down')
+                ->color('info')
+                ->action(function () {
+                    return Excel::download(
+                        new CustomersTemplateExport(), 
+                        'customers-import-template.xlsx'
+                    );
+                })
+                ->tooltip('Download Excel template for importing customers'),
+            
             Tables\Actions\Action::make('export')
                 ->label('Export Excel')
                 ->icon('heroicon-o-arrow-down-tray')
@@ -419,7 +512,8 @@ class CustomerResource extends Resource
                 ])
                 ->action(function (array $data) {
                     try {
-                        Excel::import(new CustomersImport, $data['file']);
+                        $filePath = \Illuminate\Support\Facades\Storage::disk('public')->path($data['file']);
+                        Excel::import(new CustomersImport, $filePath);
                         Notification::make()
                             ->title('Import successful')
                             ->success()

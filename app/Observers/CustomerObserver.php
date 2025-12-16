@@ -27,10 +27,22 @@ class CustomerObserver
 
     protected function setDisplayName(Customer $customer): void
     {
+        // Only override if the relevant fields are actually present/dirty
         if ($customer->type === 'personal') {
-            $customer->name = $customer->first_name . ' ' . $customer->last_name;
+             $first = $customer->first_name ?: '';
+             $last = $customer->last_name ?: '';
+             if ($first || $last) {
+                $customer->name = trim("$first $last");
+             }
         } elseif ($customer->type === 'company') {
-            $customer->name = $customer->company_name;
+             if ($customer->company_name) {
+                $customer->name = $customer->company_name;
+             }
+        }
+        
+        // Final fallback to prevent NULL
+        if (empty($customer->name)) {
+            $customer->name = 'Top Customer'; // Default fallback
         }
     }
 
