@@ -14,9 +14,9 @@ class PriceCalculator extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-calculator';
-    protected static ?string $navigationGroup = 'Sales Toolkit';
+    protected static ?string $navigationGroup = 'Sales Operations';
     protected static ?string $title = 'Price Calculator';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 5;
     
     protected static string $view = 'filament.pages.price-calculator';
 

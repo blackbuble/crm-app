@@ -14,7 +14,7 @@ class AdSpendResource extends Resource
 {
     protected static ?string $model = AdSpend::class;
     protected static ?string $navigationIcon = 'heroicon-o-presentation-chart-line';
-    protected static ?string $navigationGroup = 'Marketing';
+    protected static ?string $navigationGroup = 'Marketing Operations';
     protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form

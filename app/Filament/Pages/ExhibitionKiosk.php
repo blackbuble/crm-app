@@ -17,9 +17,9 @@ class ExhibitionKiosk extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-bolt';
-    protected static ?string $navigationGroup = 'Exhibitions';
+    protected static ?string $navigationGroup = 'Sales Operations';
     protected static ?string $title = 'Quick Lead Entry';
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 4;
     
     protected static string $view = 'filament.pages.exhibition-kiosk';
 

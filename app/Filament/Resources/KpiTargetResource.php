@@ -16,9 +16,9 @@ class KpiTargetResource extends Resource
 {
     protected static ?string $model = KpiTarget::class;
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar-square';
-    protected static ?string $navigationGroup = 'CRM';
+    protected static ?string $navigationGroup = 'Sales Operations';
     protected static ?string $navigationLabel = 'KPI Targets';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 7;
 
     public static function form(Form $form): Form
     {

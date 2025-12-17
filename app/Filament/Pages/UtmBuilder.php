@@ -14,7 +14,7 @@ class UtmBuilder extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-link';
-    protected static ?string $navigationGroup = 'Marketing';
+    protected static ?string $navigationGroup = 'Marketing Operations';
     protected static ?string $title = 'UTM Link Builder';
     protected static ?int $navigationSort = 2;
 

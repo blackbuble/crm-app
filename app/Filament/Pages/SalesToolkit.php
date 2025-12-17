@@ -8,9 +8,9 @@ use App\Models\MarketingMaterial;
 class SalesToolkit extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-briefcase';
-    protected static ?string $navigationGroup = 'Sales Toolkit';
+    protected static ?string $navigationGroup = 'Sales Operations';
     protected static ?string $title = 'Sales Assets Gallery';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 6;
     
     protected static string $view = 'filament.pages.sales-toolkit';
 

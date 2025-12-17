@@ -15,7 +15,7 @@ class ExhibitionResource extends Resource
 {
     protected static ?string $model = Exhibition::class;
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
-    protected static ?string $navigationGroup = 'Marketing';
+    protected static ?string $navigationGroup = 'Marketing Operations';
     protected static ?int $navigationSort = 4;
 
     public static function getEloquentQuery(): Builder

@@ -18,8 +18,8 @@ class FollowUpResource extends Resource
 {
     protected static ?string $model = FollowUp::class;
     protected static ?string $navigationIcon = 'heroicon-o-clock';
-    protected static ?string $navigationGroup = 'CRM';
-    protected static ?int $navigationSort = 4;
+    protected static ?string $navigationGroup = 'Sales Operations';
+    protected static ?int $navigationSort = 2;
     protected static ?string $navigationLabel = 'Follow-ups';
 
     public static function form(Form $form): Form

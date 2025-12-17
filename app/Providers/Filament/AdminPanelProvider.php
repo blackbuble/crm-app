@@ -58,6 +58,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                \App\Http\Middleware\EnsureTwoFactorVerified::class, // Enforce 2FA
             ])
             ->plugins([
                 FilamentShieldPlugin::make(),

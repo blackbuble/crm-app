@@ -16,7 +16,7 @@ class QuotationResource extends Resource
 {
     protected static ?string $model = Quotation::class;
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
-    protected static ?string $navigationGroup = 'CRM';
+    protected static ?string $navigationGroup = 'Sales Operations';
     protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form

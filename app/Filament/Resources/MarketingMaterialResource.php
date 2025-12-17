@@ -15,9 +15,9 @@ class MarketingMaterialResource extends Resource
     protected static ?string $model = MarketingMaterial::class;
     
     protected static ?string $navigationIcon = 'heroicon-o-folder-open';
-    protected static ?string $navigationGroup = 'Sales Toolkit';
+    protected static ?string $navigationGroup = 'Marketing Operations';
     protected static ?string $modelLabel = 'Sales Asset';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {
