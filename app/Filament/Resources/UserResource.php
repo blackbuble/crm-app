@@ -41,6 +41,10 @@ class UserResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255),
+
+                        Forms\Components\Toggle::make('is_active')
+                            ->required()
+                            ->default(true),
                         
                         Forms\Components\TextInput::make('password')
                             ->password()
@@ -126,6 +130,10 @@ class UserResource extends Resource
                     ->sortable()
                     ->copyable()
                     ->icon('heroicon-m-envelope'),
+
+                Tables\Columns\IconColumn::make('is_active')
+                    ->boolean()
+                    ->sortable(),
                 
                 Tables\Columns\TextColumn::make('roles.name')
                     ->label('Role')

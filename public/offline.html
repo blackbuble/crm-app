@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - CRM Kiosk</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .offline-container {
+            background: white;
+            border-radius: 20px;
+            padding: 60px 40px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .offline-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+            background: linear-gradient(135deg, #FF1493, #FF69B4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+        }
+
+        h1 {
+            font-size: 32px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        p {
+            font-size: 16px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border-radius: 25px;
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 20px;
+        }
+
+        .status.online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .retry-btn {
+            background: linear-gradient(135deg, #FF1493, #FF69B4);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 20, 147, 0.3);
+        }
+
+        .retry-btn:active {
+            transform: translateY(0);
+        }
+
+        .pending-count {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 10px;
+            color: #856404;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="offline-icon">📡</div>
+        <h1>You're Offline</h1>
+        <p>Tidak ada koneksi internet. Data yang Anda submit akan tersimpan dan otomatis terkirim saat koneksi kembali.</p>
+        
+        <div class="status" id="status">
+            🔴 Offline
+        </div>
+
+        <div id="pendingLeads" class="pending-count" style="display: none;">
+            <strong id="pendingCount">0</strong> lead menunggu untuk disinkronkan
+        </div>
+
+        <button class="retry-btn" onclick="location.reload()">
+            🔄 Coba Lagi
+        </button>
+    </div>
+
+    <script>
+        // Check online status
+        function updateOnlineStatus() {
+            const status = document.getElementById('status');
+            if (navigator.onLine) {
+                status.textContent = '🟢 Online';
+                status.classList.add('online');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                status.textContent = '🔴 Offline';
+                status.classList.remove('online');
+            }
+        }
+
+        // Check pending leads
+        async function checkPendingLeads() {
+            try {
+                const db = await openDB();
+                const leads = await getAllPendingLeads(db);
+                
+                if (leads.length > 0) {
+                    document.getElementById('pendingLeads').style.display = 'block';
+                    document.getElementById('pendingCount').textContent = leads.length;
+                }
+            } catch (error) {
+                console.error('Failed to check pending leads:', error);
+            }
+        }
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('KioskDB', 1);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+            });
+        }
+
+        function getAllPendingLeads(db) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['leads'], 'readonly');
+                const store = transaction.objectStore('leads');
+                const request = store.getAll();
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+            });
+        }
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        
+        updateOnlineStatus();
+        checkPendingLeads();
+    </script>
+</body>
+</html>

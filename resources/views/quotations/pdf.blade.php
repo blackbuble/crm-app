@@ -78,9 +78,9 @@
                         @foreach($quotation->items as $item)
                         <tr style="border-bottom: 1px solid #eeeeee;">
                             <td style="padding: 12px 15px; font-size: 12px;">{{ $item->description }}</td>
-                            <td style="padding: 12px 15px; font-size: 12px;">Rp. {{ number_format($item->unit_price, 0, ',', '.') }}</td>
+                            <td style="padding: 12px 15px; font-size: 12px;">{{ format_currency($item->unit_price) }}</td>
                             <td style="padding: 12px 15px; font-size: 12px; text-align: center;">{{ $item->quantity }}</td>
-                            <td style="padding: 12px 15px; font-size: 12px; text-align: right;">Rp. {{ number_format($item->total, 0, ',', '.') }}</td>
+                            <td style="padding: 12px 15px; font-size: 12px; text-align: right;">{{ format_currency($item->total) }}</td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -138,7 +138,7 @@
                                         <table width="100%" cellpadding="0" cellspacing="0">
                                             <tr>
                                                 <td style="font-weight: 700; color: #333333;">Total Pembayaran</td>
-                                                <td style="text-align: right; font-weight: 700; color: #333333;">Rp. {{ number_format($quotation->total, 0, ',', '.') }}</td>
+                                                <td style="text-align: right; font-weight: 700; color: #333333;">{{ format_currency($quotation->total) }}</td>
                                             </tr>
                                         </table>
                                     </td>

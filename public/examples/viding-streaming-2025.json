@@ -1,0 +1,169 @@
+{
+    "packages": [
+        {
+            "id": "pkg_wedding_basic",
+            "name": "Wedding Basic Package",
+            "description": "Paket dasar untuk pernikahan intimate (50-100 tamu)",
+            "price": 8500000,
+            "features": [
+                "Live Streaming 2 Kamera",
+                "Durasi 4 Jam",
+                "1 Operator",
+                "Basic Overlay Design",
+                "YouTube/Instagram Live"
+            ]
+        },
+        {
+            "id": "pkg_wedding_premium",
+            "name": "Wedding Premium Package",
+            "description": "Paket lengkap untuk pernikahan besar (100-300 tamu)",
+            "price": 15000000,
+            "features": [
+                "Live Streaming 3 Kamera",
+                "Durasi 6 Jam",
+                "2 Operator + 1 Director",
+                "Premium Overlay Design",
+                "Multi-Platform Streaming",
+                "Highlight Video 5 Menit",
+                "Free Rehearsal"
+            ]
+        },
+        {
+            "id": "pkg_wedding_ultimate",
+            "name": "Wedding Ultimate Package",
+            "description": "Paket premium all-in untuk pernikahan mewah (300+ tamu)",
+            "price": 25000000,
+            "features": [
+                "Live Streaming 5 Kamera + Drone",
+                "Durasi Full Day (12 Jam)",
+                "3 Operator + 1 Director + 1 Drone Pilot",
+                "Custom Luxury Overlay Design",
+                "Multi-Platform + TV Broadcast Ready",
+                "Full Video Documentation",
+                "Highlight Video 10 Menit",
+                "Same Day Edit",
+                "Free Rehearsal + Technical Meeting"
+            ]
+        },
+        {
+            "id": "pkg_corporate_standard",
+            "name": "Corporate Event Standard",
+            "description": "Untuk seminar, workshop, dan acara kantor",
+            "price": 6000000,
+            "features": [
+                "Live Streaming 2 Kamera",
+                "Durasi 4 Jam",
+                "1 Operator",
+                "Corporate Branding Overlay",
+                "YouTube/Zoom Integration"
+            ]
+        },
+        {
+            "id": "pkg_corporate_conference",
+            "name": "Corporate Conference Package",
+            "description": "Untuk konferensi besar dan product launch",
+            "price": 12000000,
+            "features": [
+                "Live Streaming 4 Kamera",
+                "Durasi 8 Jam",
+                "2 Operator + 1 Technical Director",
+                "Professional Branding Package",
+                "Multi-Platform Streaming",
+                "Live Graphics & Lower Third",
+                "Recording untuk Archive"
+            ]
+        }
+    ],
+    "addons": [
+        {
+            "id": "addon_extra_camera",
+            "name": "Extra Camera",
+            "description": "Tambahan 1 kamera dengan operator",
+            "price": 2500000
+        },
+        {
+            "id": "addon_drone",
+            "name": "Drone Coverage",
+            "description": "Aerial footage dengan drone 4K + pilot bersertifikat",
+            "price": 3500000
+        },
+        {
+            "id": "addon_photo_booth",
+            "name": "Photo Booth 360°",
+            "description": "Photo booth 360 derajat dengan instant print",
+            "price": 4000000
+        },
+        {
+            "id": "addon_led_screen",
+            "name": "LED Screen Rental",
+            "description": "LED Screen 3x2 meter untuk live display",
+            "price": 5000000
+        },
+        {
+            "id": "addon_extra_hours",
+            "name": "Extra Hours",
+            "description": "Tambahan waktu per jam (minimum 2 jam)",
+            "price": 1500000
+        },
+        {
+            "id": "addon_highlight_video",
+            "name": "Extended Highlight Video",
+            "description": "Highlight video extended 15-20 menit dengan cinematic editing",
+            "price": 3000000
+        },
+        {
+            "id": "addon_same_day_edit",
+            "name": "Same Day Edit",
+            "description": "Video highlight siap di hari yang sama (3-5 menit)",
+            "price": 4500000
+        },
+        {
+            "id": "addon_live_graphics",
+            "name": "Advanced Live Graphics",
+            "description": "Real-time graphics, scoreboards, dan custom animations",
+            "price": 2000000
+        },
+        {
+            "id": "addon_multi_language",
+            "name": "Multi-Language Subtitle",
+            "description": "Live subtitle dalam 2 bahasa (Indonesia + English)",
+            "price": 2500000
+        },
+        {
+            "id": "addon_backup_streaming",
+            "name": "Backup Streaming System",
+            "description": "Redundant internet & backup equipment untuk zero downtime",
+            "price": 3000000
+        }
+    ],
+    "discount_rules": [
+        {
+            "type": "minimum_spend",
+            "minimum": 20000000,
+            "discount_type": "percentage",
+            "discount_value": 10,
+            "description": "Diskon 10% untuk pembelian di atas Rp 20 juta"
+        },
+        {
+            "type": "minimum_spend",
+            "minimum": 35000000,
+            "discount_type": "percentage",
+            "discount_value": 15,
+            "description": "Diskon 15% untuk pembelian di atas Rp 35 juta"
+        },
+        {
+            "type": "package_count",
+            "minimum_packages": 2,
+            "discount_type": "fixed",
+            "discount_value": 2000000,
+            "description": "Diskon Rp 2 juta saat beli 2 paket atau lebih"
+        },
+        {
+            "type": "specific_package",
+            "package_id": "pkg_wedding_ultimate",
+            "discount_type": "fixed",
+            "discount_value": 3000000,
+            "description": "Special discount Rp 3 juta untuk Wedding Ultimate Package"
+        }
+    ]
+}

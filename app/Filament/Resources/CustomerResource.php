@@ -19,6 +19,13 @@ use App\Exports\CustomersExport;
 use App\Exports\CustomersTemplateExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Auth;
+use Filament\Infolists\Infolist;
+use Filament\Infolists\Components\Section;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
+use Filament\Infolists\Components\Grid;
+use Filament\Infolists\Components\Group; 
+use Filament\Infolists\Components\IconEntry;
 
 class CustomerResource extends Resource
 {
@@ -55,6 +62,83 @@ class CustomerResource extends Resource
         }
         
         return $query;
+    }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Grid::make(3)
+                    ->schema([
+                        Group::make()
+                            ->columnSpan(2)
+                            ->schema([
+                                Section::make('Interaction Timeline')
+                                    ->schema([
+                                        ViewEntry::make('timeline')
+                                            ->view('filament.infolists.customer-timeline')
+                                            ->columnSpanFull(),
+                                    ]),
+                            ]),
+                        
+                        Group::make()
+                            ->columnSpan(1)
+                            ->schema([
+                                Section::make('Customer Details')
+                                    ->schema([
+                                        TextEntry::make('name')
+                                            ->weight('bold')
+                                            ->size(TextEntry\TextEntrySize::Large),
+                                        
+                                        TextEntry::make('status')
+                                            ->badge()
+                                            ->color(fn (string $state): string => match ($state) {
+                                                'lead' => 'warning',
+                                                'prospect' => 'info',
+                                                'customer' => 'success',
+                                                'inactive' => 'danger',
+                                                default => 'gray',
+                                            }),
+                                            
+                                        TextEntry::make('type')
+                                            ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+
+                                        TextEntry::make('email')
+                                            ->icon('heroicon-m-envelope')
+                                            ->copyable(),
+                                        
+                                        TextEntry::make('phone')
+                                            ->icon('heroicon-m-phone')
+                                            ->copyable(),
+                                            
+                                        TextEntry::make('company_name')
+                                            ->visible(fn ($record) => $record->type === 'company'),
+                                            
+                                        TextEntry::make('assignedUser.name')
+                                            ->label('Assigned To'),
+                                            
+                                        TextEntry::make('created_at')
+                                            ->dateTime(),
+                                    ]),
+                                    
+                                Section::make('Notes')
+                                    ->schema([
+                                        TextEntry::make('notes')
+                                            ->markdown()
+                                            ->prose(),
+                                    ]),
+                                    
+                                Section::make('Marketing Info')
+                                    ->schema([
+                                        TextEntry::make('source'),
+                                        TextEntry::make('utm_source')->label('UTM Source'),
+                                        TextEntry::make('utm_medium')->label('UTM Medium'),
+                                        TextEntry::make('utm_campaign')->label('UTM Campaign'),
+                                    ])
+                                    ->collapsed(),
+                            ]),
+                    ]),
+            ]);
     }
 
     public static function getRelations(): array
@@ -354,6 +438,7 @@ class CustomerResource extends Resource
                     })
                     ->visible(fn (Customer $record) => !empty($record->email)),
                 
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 
                 Tables\Actions\Action::make('reassign')
@@ -536,6 +621,7 @@ class CustomerResource extends Resource
             'index' => Pages\ListCustomers::route('/'),
             'create' => Pages\CreateCustomer::route('/create'),
             'edit' => Pages\EditCustomer::route('/{record}/edit'),
+            'view' => Pages\ViewCustomer::route('/{record}'),
             'kanban' => Pages\CustomerKanban::route('/kanban'),
         ];
     }

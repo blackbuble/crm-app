@@ -2,12 +2,12 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\PricingConfig;
 use Filament\Pages\Page;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Forms;
-use Illuminate\Support\HtmlString;
 
 class PriceCalculator extends Page implements HasForms
 {
@@ -20,213 +20,141 @@ class PriceCalculator extends Page implements HasForms
     
     protected static string $view = 'filament.pages.price-calculator';
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()->can('page_PriceCalculator');
+    }
+
     public ?array $data = [];
+    public ?PricingConfig $activeConfig = null;
+    public array $calculation = [];
 
     public function mount(): void
     {
-        $this->form->fill();
+        $this->activeConfig = PricingConfig::where('is_active', true)->first();
+        
+        $this->form->fill([
+            'selected_packages' => [],
+            'selected_addons' => [],
+            'custom_discount' => 0,
+        ]);
+        
+        $this->calculate();
     }
 
     public function form(Form $form): Form
     {
+        if (!$this->activeConfig) {
+            return $form->schema([
+                Forms\Components\Placeholder::make('no_config')
+                    ->content('No active pricing configuration found. Please create one in Marketing Operations > Pricing Configs.')
+            ]);
+        }
+
+        $packages = $this->activeConfig->getPackages();
+        $addons = $this->activeConfig->getAddons();
+
         return $form
             ->schema([
-                Forms\Components\Section::make('Package Selection')
-                    ->columns(2)
+                Forms\Components\Section::make('Select Configuration')
                     ->schema([
-                        Forms\Components\Select::make('selected_packages')
-                            ->label('Select Packages')
-                            ->multiple()
-                            ->options(function () {
-                                $data = $this->getPricingData()['packages'];
-                                $options = [];
-                                foreach ($data as $category => $packages) {
-                                    foreach ($packages as $pkg) {
-                                        $options[$pkg['product_id']] = "{$category} - {$pkg['package_name']} (Rp " . number_format($pkg['prices']['discounted']) . ")";
-                                    }
-                                }
-                                return $options;
-                            })
-                            ->searchable()
+                        Forms\Components\Select::make('config_id')
+                            ->label('Pricing Configuration')
+                            ->options(PricingConfig::where('is_active', true)->pluck('name', 'id'))
+                            ->default($this->activeConfig->id)
                             ->live()
-                            ->columnSpanFull(),
-                        
-                        Forms\Components\TextInput::make('package_discount_percentage')
-                            ->label('Package Discount (%)')
-                            ->numeric()
-                            ->default(0)
-                            ->minValue(0)
-                            ->maxValue(100)
-                            ->suffix('%')
-                            ->live(),
+                            ->afterStateUpdated(function ($state) {
+                                $this->activeConfig = PricingConfig::find($state);
+                                $this->form->fill([
+                                    'selected_packages' => [],
+                                    'selected_addons' => [],
+                                    'custom_discount' => 0,
+                                ]);
+                                $this->calculate();
+                            }),
                     ]),
 
-                Forms\Components\Section::make('Add-ons Configuration')
-                    ->columns(2)
-                    ->schema(function () {
-                        $addons = $this->getPricingData()['addons'];
-                        return array_map(function($key, $addon) {
-                            return Forms\Components\TextInput::make('addon_' . $key)
-                                ->label($addon['label'])
-                                ->numeric()
-                                ->default(0)
-                                ->minValue(0)
-                                ->suffix($addon['unit'])
-                                ->helperText('Rp ' . number_format($addon['price']))
-                                ->live();
-                        }, array_keys($addons), $addons);
-                    }),
-
-                Forms\Components\Section::make('Total Estimation')
+                Forms\Components\Section::make('Packages')
+                    ->description('Select one or more packages')
                     ->schema([
-                        Forms\Components\Placeholder::make('total_display')
-                            ->hiddenLabel()
-                            ->content(function (Forms\Get $get) {
-                                $data = $this->getPricingData();
-                                $total = 0;
-                                $details = [];
+                        Forms\Components\CheckboxList::make('selected_packages')
+                            ->options(
+                                collect($packages)->values()->mapWithKeys(function ($pkg, $index) {
+                                    $id = $pkg['id'] ?? 'pkg_' . $index;
+                                    return [$id => $pkg['name'] ?? 'Package ' . ($index + 1)];
+                                })->toArray()
+                            )
+                            ->descriptions(
+                                collect($packages)->values()->mapWithKeys(function ($pkg, $index) {
+                                    $id = $pkg['id'] ?? 'pkg_' . $index;
+                                    $price = isset($pkg['price']) ? format_currency($pkg['price']) : 'N/A';
+                                    $desc = $pkg['description'] ?? '';
+                                    return [$id => $price . ($desc ? ' - ' . $desc : '')];
+                                })->toArray()
+                            )
+                            ->columns(2)
+                            ->live()
+                            ->afterStateUpdated(fn () => $this->calculate()),
+                    ])
+                    ->collapsible(),
 
-                                // Calculate Packages
-                                $packageTotal = 0;
-                                $selectedIds = $get('selected_packages') ?? [];
-                                $discountPct = (float) $get('package_discount_percentage');
+                Forms\Components\Section::make('Add-ons')
+                    ->description('Optional additional services')
+                    ->schema([
+                        Forms\Components\CheckboxList::make('selected_addons')
+                            ->options(
+                                collect($addons)->values()->mapWithKeys(function ($addon, $index) {
+                                    $id = $addon['id'] ?? 'addon_' . $index;
+                                    return [$id => $addon['name'] ?? 'Add-on ' . ($index + 1)];
+                                })->toArray()
+                            )
+                            ->descriptions(
+                                collect($addons)->values()->mapWithKeys(function ($addon, $index) {
+                                    $id = $addon['id'] ?? 'addon_' . $index;
+                                    $price = isset($addon['price']) ? format_currency($addon['price']) : 'N/A';
+                                    $desc = $addon['description'] ?? '';
+                                    return [$id => $price . ($desc ? ' - ' . $desc : '')];
+                                })->toArray()
+                            )
+                            ->columns(2)
+                            ->live()
+                            ->afterStateUpdated(fn () => $this->calculate()),
+                    ])
+                    ->collapsible(),
 
-                                // Flatten packages for easy lookup
-                                $allPackages = collect($data['packages'])->flatten(1);
-
-                                foreach ($selectedIds as $id) {
-                                    $pkg = $allPackages->firstWhere('product_id', $id);
-                                    if ($pkg) {
-                                        $price = $pkg['prices']['discounted'];
-                                        $packageTotal += $price;
-                                        $details[] = [
-                                            'label' => $pkg['package_name'],
-                                            'price' => $price,
-                                            'type' => 'pkg'
-                                        ];
-                                    }
-                                }
-                                
-                                // Apply Discount
-                                $discountAmount = 0;
-                                if ($discountPct > 0 && $packageTotal > 0) {
-                                    $discountAmount = ($packageTotal * $discountPct) / 100;
-                                    $details[] = [
-                                        'label' => "Discount ({$discountPct}%)",
-                                        'price' => -$discountAmount,
-                                        'type' => 'discount'
-                                    ];
-                                }
-                                
-                                $total += ($packageTotal - $discountAmount);
-
-                                // Calculate Addons
-                                foreach ($data['addons'] as $key => $addon) {
-                                    $qty = (int) $get('addon_' . $key);
-                                    if ($qty > 0) {
-                                        $subtotal = $qty * $addon['price'];
-                                        $total += $subtotal;
-                                        $details[] = [
-                                            'label' => "{$addon['label']} ({$qty}x)",
-                                            'price' => $subtotal,
-                                            'type' => 'addon'
-                                        ];
-                                    }
-                                }
-
-                                $formattedTotal = number_format($total);
-                                
-                                // Generate HTML Table for Breakdown
-                                $rows = "";
-                                foreach ($details as $item) {
-                                    $p = number_format(abs($item['price']));
-                                    $sign = $item['price'] < 0 ? '- Rp ' : 'Rp ';
-                                    $color = $item['price'] < 0 ? 'text-success-600' : 'text-gray-900';
-                                    
-                                    $rows .= "<div class='flex justify-between text-sm py-1 border-b border-gray-100'>
-                                        <span>{$item['label']}</span>
-                                        <span class='font-medium {$color}'>{$sign}{$p}</span>
-                                    </div>";
-                                }
-
-                                return new HtmlString("
-                                    <div class='bg-white rounded-xl p-6 shadow-sm border border-gray-200'>
-                                        <div class='space-y-2 mb-4'>
-                                            {$rows}
-                                        </div>
-                                        <div class='flex justify-between items-center pt-4 border-t border-gray-200'>
-                                            <span class='text-lg font-bold text-gray-700'>GRAND TOTAL</span>
-                                            <span class='text-3xl font-black text-primary-600'>Rp {$formattedTotal}</span>
-                                        </div>
-                                    </div>
-                                ");
-                            }),
+                Forms\Components\Section::make('Discounts')
+                    ->schema([
+                        Forms\Components\TextInput::make('custom_discount')
+                            ->label('Additional Discount')
+                            ->numeric()
+                            ->prefix(get_currency_symbol())
+                            ->default(0)
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(fn () => $this->calculate())
+                            ->helperText('Manual discount amount'),
                     ]),
             ])
             ->statePath('data');
     }
 
-    protected function getPricingData(): array
+    public function calculate(): void
     {
-        return [
-            "packages" => [
-                "Digital Invitation" => [
-                    [
-                        "package_name" => "Basic",
-                        "product_id" => 33,
-                        "prices" => ["normal" => 360000, "discounted" => 300000, "base" => 300000],
-                        "image" => "landing/Basic - Digital Invitation.png"
-                    ],
-                    [
-                        "package_name" => "Intimate",
-                        "product_id" => 34,
-                        "prices" => ["normal" => 740000, "discounted" => 670000, "base" => 600000],
-                        "image" => "landing/Intimate - Digital Invitation.png"
-                    ],
-                    [
-                        "package_name" => "Royal",
-                        "product_id" => 35,
-                        "prices" => ["normal" => 900000, "discounted" => 850000, "base" => 760000],
-                        "image" => "landing/Royal - Digital Invitation.png"
-                    ]
-                ],
-                "Buku Tamu Digital" => [
-                    [
-                        "package_name" => "Apps Penerima Tamu",
-                        "product_id" => 36,
-                        "prices" => ["normal" => 2390000, "discounted" => 2100000, "base" => 1890000],
-                        "image" => "landing/Apps Penerima Tamu.png"
-                    ]
-                ],
-                "Live Streaming" => [
-                    [
-                        "package_name" => "Bronze",
-                        "product_id" => 30,
-                        "prices" => ["normal" => 3999000, "discounted" => 3700000, "base" => 3290000],
-                        "image" => "landing/Bronze - Live Streaming.png"
-                    ],
-                    [
-                        "package_name" => "Silver",
-                        "product_id" => 31,
-                        "prices" => ["normal" => 7780000, "discounted" => 5250000, "base" => 4690000],
-                        "image" => "landing/Silver - Live Streaming.png"
-                    ],
-                    [
-                        "package_name" => "Gold",
-                        "product_id" => 32,
-                        "prices" => ["normal" => 10190000, "discounted" => 6250000, "base" => 5590000],
-                        "image" => "landing/Gold - Live Streaming.png"
-                    ]
-                ]
-            ],
-            "addons" => [
-                "usher" => ["label" => "Usher / PIC Acara", "price" => 800000, "unit" => "orang"],
-                "tablet" => ["label" => "Tablet Buku Tamu", "price" => 550000, "unit" => "unit"],
-                "printer" => ["label" => "Printer Label", "price" => 250000, "unit" => "unit"],
-                "combo_extend" => ["label" => "Extend Duration / Combo", "price" => 1300000, "unit" => "paket"],
-                "tv" => ["label" => "TV Display", "price" => 650000, "unit" => "unit"],
-                "domain" => ["label" => "Custom Domain", "price" => 150000, "unit" => "domain / tahun"]
-            ]
-        ];
+        if (!$this->activeConfig) {
+            $this->calculation = [];
+            return;
+        }
+
+        $data = $this->form->getState();
+        
+        $this->calculation = $this->activeConfig->calculateTotal(
+            $data['selected_packages'] ?? [],
+            $data['selected_addons'] ?? [],
+            floatval($data['custom_discount'] ?? 0)
+        );
+    }
+
+    public function getCalculation(): array
+    {
+        return $this->calculation;
     }
 }
