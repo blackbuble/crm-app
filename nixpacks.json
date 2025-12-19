@@ -4,6 +4,7 @@
             "nixPkgs": [
                 "php83",
                 "php83Packages.composer",
+                "nodejs-20_x",
                 "php83Extensions.mbstring",
                 "php83Extensions.pdo",
                 "php83Extensions.pdo_mysql",

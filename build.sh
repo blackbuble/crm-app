@@ -17,11 +17,16 @@ fi
 echo "📦 Installing Composer dependencies..."
 composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-scripts
 
-echo "📦 Installing NPM dependencies..."
-npm ci --include=dev
-
-echo "🏗️ Building assets..."
-npm run build
+# Check if npm is available
+if command -v npm &> /dev/null; then
+    echo "📦 Installing NPM dependencies..."
+    npm ci --include=dev
+    
+    echo "🏗️ Building assets..."
+    npm run build
+else
+    echo "⚠️  NPM not found, skipping asset build..."
+fi
 
 echo "⚡ Running post-install scripts..."
 composer run-script post-autoload-dump
