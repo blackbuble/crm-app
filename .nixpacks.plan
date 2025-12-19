@@ -1,0 +1,5 @@
+# Nixpacks Build Plan Override
+# This tells Nixpacks to auto-detect providers instead of manual config
+
+# Let Nixpacks detect PHP and Node.js automatically
+# from composer.json and package.json

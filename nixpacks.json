@@ -1,8 +1,4 @@
 {
-    "providers": [
-        "php",
-        "node"
-    ],
     "phases": {
         "setup": {
             "nixPkgs": [
@@ -14,10 +10,8 @@
                 "php83Extensions.zip",
                 "php83Extensions.bcmath",
                 "php83Extensions.intl",
-                "php83Extensions.redis",
-                "nodejs_20"
-            ],
-            "aptPkgs": []
+                "php83Extensions.redis"
+            ]
         },
         "install": {
             "cmds": [
