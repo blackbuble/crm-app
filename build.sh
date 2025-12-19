@@ -20,7 +20,15 @@ composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist -
 # Check if npm is available
 if command -v npm &> /dev/null; then
     echo "📦 Installing NPM dependencies..."
-    npm ci --include=dev
+    
+    # Use npm install if package-lock.json doesn't exist, otherwise use npm ci
+    if [ -f "package-lock.json" ]; then
+        echo "  Using npm ci (lockfile found)..."
+        npm ci --include=dev
+    else
+        echo "  Using npm install (no lockfile)..."
+        npm install --include=dev
+    fi
     
     echo "🏗️ Building assets..."
     npm run build

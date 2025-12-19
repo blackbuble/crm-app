@@ -23,7 +23,7 @@
         "install": {
             "cmds": [
                 "composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-scripts",
-                "npm ci --include=dev"
+                "npm install --include=dev"
             ]
         },
         "build": {
