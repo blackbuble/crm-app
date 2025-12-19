@@ -3,26 +3,29 @@ set -e
 
 echo "🚀 Starting deployment sequence..."
 
-# Clear any existing cache that might point to non-existent tables
-echo "🧹 Clearing previous caches..."
+# Fast cache clear
 php artisan config:clear
 php artisan cache:clear || true
 
-# Create storage link
+# Storage link
 php artisan storage:link || true
 
-# Run migrations
+# Run migrations (Force)
 echo "📊 Running database migrations..."
-php artisan migrate --force
+if php artisan migrate --force; then
+    echo "✅ Migrations successful"
+else
+    echo "⚠️  Migration failed or DB not reachable yet, continuing to start app..."
+fi
 
-# Now that tables exist, we can safely optimize
+# Optimizations
 echo "⚡ Optimizing application..."
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
-php artisan filament:optimize
+php artisan filament:optimize || true
 
 # Set permissions
 chmod -R 755 storage bootstrap/cache
 
-echo "✅ Deployment sequence completed!"
+echo "✅ Deployment sequence finished!"

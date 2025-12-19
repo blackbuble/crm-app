@@ -32,8 +32,5 @@
                 "npm run build"
             ]
         }
-    },
-    "start": {
-        "cmd": "bash deploy.sh && (php-fpm -D && nginx -g 'daemon off;')"
     }
 }
