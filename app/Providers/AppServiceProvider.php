@@ -28,7 +28,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        if (config('app.env') === 'production' || config('app.url') && str_starts_with(config('app.url'), 'https://')) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         FollowUp::observe(FollowUpObserver::class);
         Quotation::observe(QuotationObserver::class);
         Customer::observe(CustomerObserver::class);
