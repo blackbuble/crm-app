@@ -45,10 +45,14 @@ if (!function_exists('get_company_logo')) {
                 return $logo;
             }
             
-            // Generate public storage URL
-            // Logo is stored in storage/app/public/logo/
-            // Accessible via /storage/logo/company-logo.ext
-            return \Illuminate\Support\Facades\Storage::disk('public')->url($logo);
+            $url = \Illuminate\Support\Facades\Storage::disk('public')->url($logo);
+            
+            // If the URL doesn't start with http, it might be a relative path due to misconfigured APP_URL
+            if (!str_starts_with($url, 'http')) {
+                return asset('storage/' . $logo);
+            }
+            
+            return $url;
         }
         
         return null;

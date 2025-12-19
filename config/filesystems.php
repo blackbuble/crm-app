@@ -41,7 +41,7 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL').'/storage',
+            'url' => (str_starts_with(env('APP_URL', ''), 'http') ? env('APP_URL') : '') . '/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,
