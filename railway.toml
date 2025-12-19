@@ -1,11 +1,12 @@
-# Railway Template Configuration
-
 [build]
 builder = "NIXPACKS"
-buildCommand = "bash build.sh"
 
 [deploy]
 healthcheckPath = "/healthcheck"
-healthcheckTimeout = 100
+healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
+maxRetries = 10
+
+# Gunakan Railway 'Release Command' untuk migrasi (Modern Way)
+[deploy.release]
+command = "php artisan migrate --force"

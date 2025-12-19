@@ -4,33 +4,28 @@
             "nixPkgs": [
                 "php83",
                 "php83Packages.composer",
-                "nodejs_20",
-                "php83Extensions.mbstring",
-                "php83Extensions.pdo",
-                "php83Extensions.pdo_mysql",
-                "php83Extensions.gd",
-                "php83Extensions.zip",
-                "php83Extensions.bcmath",
-                "php83Extensions.intl",
-                "php83Extensions.redis",
-                "php83Extensions.dom",
-                "php83Extensions.xml",
-                "php83Extensions.curl",
-                "php83Extensions.fileinfo",
-                "php83Extensions.tokenizer"
+                "nodejs_20"
+            ],
+            "aptPkgs": [
+                "libpng-dev",
+                "libjpeg-dev",
+                "freetype6-dev"
             ]
         },
         "install": {
             "cmds": [
-                "composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-scripts",
-                "npm install --include=dev"
+                "composer install --no-dev --optimize-autoloader --no-interaction",
+                "npm ci"
             ]
         },
         "build": {
             "cmds": [
-                "composer run-script post-autoload-dump",
                 "npm run build"
             ]
         }
+    },
+    "variables": {
+        "NIXPACKS_PHP_ROOT_DIR": "public",
+        "NIXPACKS_PHP_FALLBACK_PATH": "/index.php"
     }
 }
