@@ -15,8 +15,7 @@
                 "php83Extensions.bcmath",
                 "php83Extensions.intl",
                 "php83Extensions.redis",
-                "nodejs_20",
-                "npm"
+                "nodejs_20"
             ],
             "aptPkgs": []
         },
