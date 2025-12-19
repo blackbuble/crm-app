@@ -78,7 +78,6 @@ class Settings extends Page implements HasForms
                         FileUpload::make('company_logo')
                             ->label('Company Logo')
                             ->image()
-                            ->disk('public')
                             ->directory('logo')
                             ->visibility('public')
                             ->helperText('Upload your company logo (max 2MB). Recommended: 300x300px')
