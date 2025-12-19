@@ -3,6 +3,7 @@
         "setup": {
             "nixPkgs": [
                 "php83",
+                "composer",
                 "php83Extensions.mbstring",
                 "php83Extensions.pdo",
                 "php83Extensions.pdo_mysql",
