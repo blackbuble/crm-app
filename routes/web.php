@@ -3,6 +3,10 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\QuotationPdfController;
 
+Route::get('/healthcheck', function () {
+    return response('OK', 200);
+});
+
 Route::get('/', function () {
     return redirect('/admin/login');
 });
