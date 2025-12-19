@@ -3,10 +3,9 @@ builder = "NIXPACKS"
 
 [deploy]
 healthcheckPath = "/healthcheck"
-healthcheckTimeout = 120
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 maxRetries = 10
 
-# Gunakan Railway 'Release Command' untuk migrasi (Modern Way)
 [deploy.release]
 command = "php artisan migrate --force"

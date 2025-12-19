@@ -4,8 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\QuotationPdfController;
 
 Route::get('/healthcheck', function () {
-    return response('OK', 200);
-});
+    return response('OK', 200)->header('Content-Type', 'text/plain');
+})->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
 
 Route::get('/', function () {
     return redirect('/admin/login');
