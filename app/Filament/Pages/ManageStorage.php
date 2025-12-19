@@ -104,13 +104,13 @@ class ManageStorage extends Page
         $data = $this->form->getState();
         
         $settings->filesystem_driver = $data['filesystem_driver'];
-        $settings->aws_access_key_id = $data['aws_access_key_id'];
-        $settings->aws_secret_access_key = $data['aws_secret_access_key'];
-        $settings->aws_default_region = $data['aws_default_region'];
-        $settings->aws_bucket = $data['aws_bucket'];
-        $settings->aws_url = $data['aws_url'];
-        $settings->aws_endpoint = $data['aws_endpoint'];
-        $settings->aws_use_path_style_endpoint = $data['aws_use_path_style_endpoint'];
+        $settings->aws_access_key_id = $data['aws_access_key_id'] ?? $settings->aws_access_key_id;
+        $settings->aws_secret_access_key = $data['aws_secret_access_key'] ?? $settings->aws_secret_access_key;
+        $settings->aws_default_region = $data['aws_default_region'] ?? $settings->aws_default_region;
+        $settings->aws_bucket = $data['aws_bucket'] ?? $settings->aws_bucket;
+        $settings->aws_url = $data['aws_url'] ?? $settings->aws_url;
+        $settings->aws_endpoint = $data['aws_endpoint'] ?? $settings->aws_endpoint;
+        $settings->aws_use_path_style_endpoint = $data['aws_use_path_style_endpoint'] ?? $settings->aws_use_path_style_endpoint;
         
         $settings->save();
         
