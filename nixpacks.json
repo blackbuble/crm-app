@@ -5,11 +5,6 @@
                 "php83",
                 "php83Packages.composer",
                 "nodejs_20"
-            ],
-            "aptPkgs": [
-                "libpng-dev",
-                "libjpeg-dev",
-                "freetype6-dev"
             ]
         },
         "install": {
