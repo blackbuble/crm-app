@@ -13,18 +13,24 @@
                     Price Estimation
                 </h2>
 
-                <!-- Breakdown -->
+                <!-- breakdown -->
                 <div class="space-y-4 mb-6">
                     @if(!empty($this->calculation['breakdown']['packages']))
                         <div>
                             <h3 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">📦 Selected Packages:</h3>
-                            <ul class="space-y-1 ml-4">
+                            <ul class="space-y-1 ml-4 border-l-2 border-primary-200 pl-4">
                                 @foreach($this->calculation['breakdown']['packages'] as $package)
-                                    <li class="flex justify-between text-sm">
+                                    <li class="flex justify-between text-sm py-1">
                                         <span class="text-gray-600 dark:text-gray-400">{{ $package['name'] }}</span>
                                         <span class="font-medium">{{ format_currency($package['price']) }}</span>
                                     </li>
                                 @endforeach
+                                @if($this->calculation['package_discount'] > 0)
+                                    <li class="flex justify-between text-sm py-1 text-red-500 italic">
+                                        <span>↳ Package Discount ({{ $this->calculation['package_discount_percent'] }}%)</span>
+                                        <span>- {{ format_currency($this->calculation['package_discount']) }}</span>
+                                    </li>
+                                @endif
                             </ul>
                         </div>
                     @endif
@@ -32,11 +38,14 @@
                     @if(!empty($this->calculation['breakdown']['addons']))
                         <div>
                             <h3 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">➕ Selected Add-ons:</h3>
-                            <ul class="space-y-1 ml-4">
+                            <ul class="space-y-1 ml-4 border-l-2 border-info-200 pl-4">
                                 @foreach($this->calculation['breakdown']['addons'] as $addon)
-                                    <li class="flex justify-between text-sm">
-                                        <span class="text-gray-600 dark:text-gray-400">{{ $addon['name'] }}</span>
-                                        <span class="font-medium">{{ format_currency($addon['price']) }}</span>
+                                    <li class="flex justify-between text-sm py-1">
+                                        <div class="flex flex-col">
+                                            <span class="text-gray-600 dark:text-gray-400">{{ $addon['name'] }}</span>
+                                            <span class="text-xs text-gray-400">Qty: {{ $addon['quantity'] }} × {{ format_currency($addon['price']) }}</span>
+                                        </div>
+                                        <span class="font-medium">{{ format_currency($addon['total']) }}</span>
                                     </li>
                                 @endforeach
                             </ul>
@@ -44,7 +53,7 @@
                     @endif
                 </div>
 
-                <!-- Summary -->
+                <!-- summary -->
                 <div class="border-t-2 border-gray-200 dark:border-gray-700 pt-4 space-y-3">
                     <div class="flex justify-between text-lg">
                         <span class="text-gray-700 dark:text-gray-300">Subtotal:</span>
@@ -60,7 +69,7 @@
 
                     @if($this->calculation['custom_discount'] > 0)
                         <div class="flex justify-between text-blue-600 dark:text-blue-400">
-                            <span>💰 Additional Discount:</span>
+                            <span>💰 Extra Global Discount:</span>
                             <span class="font-semibold">- {{ format_currency($this->calculation['custom_discount']) }}</span>
                         </div>
                     @endif

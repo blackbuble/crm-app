@@ -69,4 +69,9 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasMany(User::class, 'manager_id');
     }
+
+    public function waTemplates(): HasMany
+    {
+        return $this->hasMany(WaTemplate::class);
+    }
 }

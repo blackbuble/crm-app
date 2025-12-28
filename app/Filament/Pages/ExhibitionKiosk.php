@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\Customer;
 use App\Models\Exhibition;
+use App\Models\PricingConfig;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Pages\Page;
@@ -29,10 +30,20 @@ class ExhibitionKiosk extends Page implements HasForms
     }
 
     public ?array $data = [];
+    public ?PricingConfig $activeConfig = null;
+    public array $calculation = [
+        'subtotal' => 0,
+        'total' => 0,
+        'auto_discount' => 0,
+        'custom_discount' => 0,
+        'package_discount' => 0,
+        'package_discount_percent' => 0,
+        'total_discount' => 0,
+        'breakdown' => ['packages' => [], 'addons' => []]
+    ];
 
     public function mount(): void
     {
-        // Try to find active exhibition for today
         // Try to find active exhibition for today
         $query = Exhibition::whereDate('start_date', '<=', now())
             ->whereDate('end_date', '>=', now());
@@ -43,11 +54,41 @@ class ExhibitionKiosk extends Page implements HasForms
 
         $activeExhibition = $query->first();
 
+        $this->activeConfig = PricingConfig::where('is_active', true)->first();
+
+        $defaultTemplate = auth()->user()->waTemplates()->where('is_active', true)->first()?->message ?? "Hi! Terima kasih sudah mampir ke booth kami. Berikut price list spesial pameran untuk kakak.";
+
         $this->form->fill([
             'exhibition_id' => $activeExhibition?->id,
             'source' => 'Exhibition',
             'status' => 'lead',
+            'config_id' => $this->activeConfig?->id,
+            'selected_packages' => [],
+            'selected_addons' => [],
+            'custom_discount' => 0,
+            'package_discount' => 0,
+            'wa_message' => $defaultTemplate,
+            'send_instant_wa' => true,
         ]);
+
+        $this->calculate();
+    }
+
+    public function calculate(): void
+    {
+        $formData = $this->form->getRawState();
+        $configId = $formData['config_id'] ?? null;
+        
+        $config = $configId ? PricingConfig::find($configId) : $this->activeConfig;
+        
+        if (!$config) return;
+
+        $this->calculation = $config->calculateTotal(
+            $formData['selected_packages'] ?? [],
+            $formData['selected_addons'] ?? [],
+            floatval($formData['custom_discount'] ?? 0),
+            floatval($formData['package_discount'] ?? 0)
+        );
     }
 
     public function form(Form $form): Form
@@ -259,86 +300,152 @@ class ExhibitionKiosk extends Page implements HasForms
                                         Forms\Components\Section::make('💰 Quick Price Estimator')
                                             ->collapsed()
                                             ->schema([
-                                                Forms\Components\Grid::make(2)
-                                                    ->schema([
-                                                        Forms\Components\Select::make('est_invitation_pkg')
-                                                            ->label('Digital Invitation')
-                                                            ->options(collect($this->getPricingData()['packages']['Digital Invitation'])->pluck('package_name', 'product_id'))
-                                                            ->live(),
-                                                        
-                                                        Forms\Components\Select::make('est_guestbook_pkg')
-                                                            ->label('Buku Tamu Digital')
-                                                            ->options(collect($this->getPricingData()['packages']['Buku Tamu Digital'])->pluck('package_name', 'product_id'))
-                                                            ->live(),
-                                                            
-                                                        Forms\Components\Select::make('est_streaming_pkg')
-                                                            ->label('Live Streaming')
-                                                            ->options(collect($this->getPricingData()['packages']['Live Streaming'])->pluck('package_name', 'product_id'))
-                                                            ->live(),
-                                                    ]),
+                                                Forms\Components\Select::make('config_id')
+                                                    ->label('Pricing Configuration')
+                                                    ->options(fn() => PricingConfig::where('is_active', true)->pluck('name', 'id'))
+                                                    ->required()
+                                                    ->live()
+                                                    ->afterStateUpdated(function ($state) {
+                                                        $this->activeConfig = PricingConfig::find($state);
+                                                        $this->calculate();
+                                                    }),
 
-                                                Forms\Components\Fieldset::make('Add-ons')
-                                                    ->schema(function () {
-                                                        $addons = $this->getPricingData()['addons'];
-                                                        $fields = [];
-                                                        foreach ($addons as $key => $addon) {
-                                                            $fields[] = Forms\Components\TagsInput::make('addon_' . $key)
-                                                                ->label($addon['label'] . ' (' . number_format($addon['price']) . '/' . $addon['unit'] . ')')
-                                                                ->placeholder('Qty')
-                                                                ->suggestions(['1', '2', '3'])
-                                                                ->separator(',')
-                                                                ->live(); 
-                                                            // Using TagsInput as a hack for simple array/qty input or just use TextInput with numeric
-                                                        }
-                                                        // Better: Use Repeater or simple TextInputs for Quantity
-                                                        return array_map(function($key, $addon) {
-                                                            return Forms\Components\TextInput::make('addon_' . $key)
-                                                                ->label($addon['label'])
-                                                                ->numeric()
-                                                                ->default(0)
-                                                                ->suffix($addon['unit'])
-                                                                ->helperText('Rp ' . number_format($addon['price']))
-                                                                ->live();
-                                                        }, array_keys($addons), $addons);
+                                                Forms\Components\Select::make('selected_packages')
+                                                    ->label('Packages')
+                                                    ->multiple()
+                                                    ->searchable()
+                                                    ->options(function (Forms\Get $get) {
+                                                        $configId = $get('config_id');
+                                                        if (!$configId) return [];
+                                                        $config = PricingConfig::find($configId);
+                                                        if (!$config) return [];
+                                                        return collect($config->getPackages())->values()->mapWithKeys(function($pkg, $index) {
+                                                            $id = $pkg['id'] ?? 'pkg_'.$index;
+                                                            $name = $pkg['name'] ?? 'Package';
+                                                            $price = isset($pkg['price']) ? ' ('.format_currency($pkg['price']).')' : '';
+                                                            return [$id => $name . $price];
+                                                        })->toArray();
                                                     })
-                                                    ->columns(2),
+                                                    ->live()
+                                                    ->afterStateUpdated(fn () => $this->calculate()),
+
+                                                Forms\Components\TextInput::make('package_discount')
+                                                    ->label('Package Discount %')
+                                                    ->numeric()
+                                                    ->suffix('%')
+                                                    ->default(0)
+                                                    ->minValue(0)
+                                                    ->maxValue(100)
+                                                    ->live(onBlur: true)
+                                                    ->afterStateUpdated(fn () => $this->calculate()),
+
+                                                Forms\Components\Repeater::make('selected_addons')
+                                                    ->label('Add-ons')
+                                                    ->schema([
+                                                        Forms\Components\Select::make('addon_id')
+                                                            ->label('Service')
+                                                            ->options(function (Forms\Get $get) {
+                                                                $configId = $get('../../config_id');
+                                                                if (!$configId) return [];
+                                                                $config = PricingConfig::find($configId);
+                                                                if (!$config) return [];
+
+                                                                $selectedPackages = $get('../../selected_packages') ?? [];
+                                                                $packageNames = collect($config->getPackages())
+                                                                    ->whereIn('id', $selectedPackages)
+                                                                    ->pluck('name')
+                                                                    ->map(fn($n) => strtolower($n))
+                                                                    ->all();
+
+                                                                return collect($config->getAddons())
+                                                                    ->filter(function ($addon) use ($packageNames) {
+                                                                        $category = $addon['category'] ?? '';
+                                                                        $addonName = strtolower($addon['name'] ?? '');
+                                                                        $hasStreaming = collect($packageNames)->contains(fn($pn) => str_contains($pn, 'live') || str_contains($pn, 'streaming') || str_contains($pn, 'livestream'));
+
+                                                                        if ($category === 'Live Streaming' || $category === 'Live Cam') return $hasStreaming;
+                                                                        if ($category === 'Combo') {
+                                                                            if (str_contains($addonName, 'live streaming') || str_contains($addonName, 'streaming')) {
+                                                                                if (!$hasStreaming) return false;
+                                                                                if (str_contains($addonName, 'bronze')) return collect($packageNames)->contains(fn($pn) => str_contains($pn, 'bronze'));
+                                                                                if (str_contains($addonName, 'silver')) return collect($packageNames)->contains(fn($pn) => str_contains($pn, 'silver'));
+                                                                                if (str_contains($addonName, 'gold'))   return collect($packageNames)->contains(fn($pn) => str_contains($pn, 'gold'));
+                                                                            }
+                                                                            return !empty($packageNames);
+                                                                        }
+                                                                        return true;
+                                                                    })
+                                                                    ->groupBy('category')
+                                                                    ->map(fn($items) => $items->values()->mapWithKeys(function($a, $i) {
+                                                                        $id = $a['id'] ?? 'addon_'.$i;
+                                                                        $name = $a['name'] ?? 'Add-on';
+                                                                        $price = isset($a['price']) ? ' ('.format_currency($a['price']).')' : '';
+                                                                        return [$id => $name . $price];
+                                                                    }))
+                                                                    ->toArray();
+                                                            })
+                                                            ->required()
+                                                            ->live()
+                                                            ->afterStateUpdated(fn () => $this->calculate()),
+
+                                                        Forms\Components\TextInput::make('quantity')
+                                                            ->label(fn(Forms\Get $get) => str_contains(strtolower($get('addon_id') ?? ''), 'wa_blast') ? 'Multiplier (100msg)' : 'Qty')
+                                                            ->numeric()
+                                                            ->default(1)
+                                                            ->minValue(1)
+                                                            ->visible(function (Forms\Get $get) {
+                                                                $id = strtolower($get('addon_id') ?? '');
+                                                                if (!$id) return false;
+                                                                foreach (['livecam', 'egift', 'domain', 'layar_sapa'] as $t) if (str_contains($id, $t)) return false;
+                                                                return true;
+                                                            })
+                                                            ->live()
+                                                            ->afterStateUpdated(fn () => $this->calculate()),
+
+                                                        Forms\Components\Select::make('tv_size')
+                                                            ->label('Size')
+                                                            ->options(['50' => '50"', '60' => '60"', '65' => '65"'])
+                                                            ->visible(fn (Forms\Get $get) => str_contains(strtolower($get('addon_id') ?? ''), 'tv'))
+                                                            ->live()
+                                                            ->afterStateUpdated(fn () => $this->calculate()),
+                                                    ])->columns(3)
+                                                    ->live()
+                                                    ->itemLabel(function (array $state, Forms\Get $get): ?string {
+                                                        $configId = $get('config_id');
+                                                        $config = $configId ? PricingConfig::find($configId) : null;
+                                                        return collect($config?->getAddons() ?? [])->firstWhere('id', $state['addon_id'] ?? null)['name'] ?? null;
+                                                    })
+                                                    ->afterStateUpdated(fn () => $this->calculate()),
+
+                                                Forms\Components\TextInput::make('custom_discount')
+                                                    ->label('Extra Discount')
+                                                    ->numeric()
+                                                    ->prefix(get_currency_symbol())
+                                                    ->default(0)
+                                                    ->live(onBlur: true)
+                                                    ->afterStateUpdated(fn () => $this->calculate()),
 
                                                 Forms\Components\Placeholder::make('total_estimation')
-                                                    ->label('Total Estimated Price')
-                                                    ->content(function (Forms\Get $get) {
-                                                        $data = $this->getPricingData();
-                                                        $total = 0;
-                                                        $details = [];
-
-                                                        // Packages
-                                                        foreach (['est_invitation_pkg' => 'Digital Invitation', 'est_guestbook_pkg' => 'Buku Tamu Digital', 'est_streaming_pkg' => 'Live Streaming'] as $field => $category) {
-                                                            $selectedId = $get($field);
-                                                            if ($selectedId) {
-                                                                $pkg = collect($data['packages'][$category])->firstWhere('product_id', $selectedId);
-                                                                if ($pkg) {
-                                                                    $price = $pkg['prices']['discounted']; // Use discounted for exhibition
-                                                                    $total += $price;
-                                                                    $details[] = "{$pkg['package_name']}: " . number_format($price);
-                                                                }
-                                                            }
-                                                        }
-
-                                                        // Addons
-                                                        foreach ($data['addons'] as $key => $addon) {
-                                                            $qty = (int) $get('addon_' . $key);
-                                                            if ($qty > 0) {
-                                                                $subtotal = $qty * $addon['price'];
-                                                                $total += $subtotal;
-                                                                $details[] = "{$addon['label']} ({$qty}x): " . number_format($subtotal);
-                                                            }
-                                                        }
-
-                                                        $formattedTotal = number_format($total);
+                                                    ->label('Price Estimation')
+                                                    ->content(function () {
+                                                        $calc = $this->calculation;
+                                                        $formattedTotal = format_currency($calc['total']);
                                                         
+                                                        $details = [];
+                                                        foreach ($calc['breakdown']['packages'] as $pkg) $details[] = "• {$pkg['name']}";
+                                                        foreach ($calc['breakdown']['addons'] as $addon) $details[] = "• {$addon['name']} (x{$addon['quantity']})";
+                                                        
+                                                        if ($calc['package_discount'] > 0) $details[] = "🎁 Package Disc: -" . format_currency($calc['package_discount']);
+                                                        if ($calc['auto_discount'] > 0) $details[] = "✨ Auto Disc: -" . format_currency($calc['auto_discount']);
+                                                        if ($calc['custom_discount'] > 0) $details[] = "💰 Extra Disc: -" . format_currency($calc['custom_discount']);
+
                                                         return new \Illuminate\Support\HtmlString("
-                                                            <div class='text-right'>
-                                                                <div class='text-3xl font-black text-primary-600'>Rp {$formattedTotal}</div>
-                                                                <div class='text-xs text-gray-500'>" . implode('<br>', $details) . "</div>
+                                                            <div class='mt-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200'>
+                                                                <div class='flex justify-between items-center mb-2'>
+                                                                    <span class='text-gray-500 text-sm'>Total Estimate:</span>
+                                                                    <span class='text-2xl font-black text-primary-600'>{$formattedTotal}</span>
+                                                                </div>
+                                                                <div class='text-[10px] text-gray-400 leading-tight'>" . implode(' | ', $details) . "</div>
                                                             </div>
                                                         ");
                                                     }),
@@ -372,11 +479,29 @@ class ExhibitionKiosk extends Page implements HasForms
                                             ->live()
                                             ->helperText('Send immediate greeting to lock relationship.'),
                                             
+                                        Forms\Components\Select::make('wa_template_id')
+                                            ->label('Select Message Template')
+                                            ->visible(fn (Forms\Get $get) => $get('send_instant_wa'))
+                                            ->options(function() {
+                                                return auth()->user()->waTemplates()
+                                                    ->where('is_active', true)
+                                                    ->pluck('category', 'id')
+                                                    ->toArray();
+                                            })
+                                            ->live()
+                                            ->afterStateUpdated(function($state, $set) {
+                                                if ($state) {
+                                                    $template = \App\Models\WaTemplate::find($state);
+                                                    if ($template) {
+                                                        $set('wa_message', $template->message);
+                                                    }
+                                                }
+                                            }),
+                                            
                                         Forms\Components\Textarea::make('wa_message')
                                             ->label('Custom Greeting Message')
                                             ->visible(fn (Forms\Get $get) => $get('send_instant_wa'))
-                                            ->default("Hi! Terima kasih sudah mampir ke booth kami. Berikut price list spesial pameran untuk kakak.")
-                                            ->rows(2),
+                                            ->rows(3),
                                             
                                         Forms\Components\Select::make('wa_attachment_id')
                                             ->label('Attach Price List / Brochure')
@@ -450,6 +575,27 @@ class ExhibitionKiosk extends Page implements HasForms
             $analysisNote .= "🔒 LOCKED PROMO: {$promoName}\n";
         }
         
+        // Price Estimation Note
+        if ($this->activeConfig && (!empty($data['selected_packages']) || !empty($data['selected_addons']))) {
+            $calc = $this->activeConfig->calculateTotal(
+                $data['selected_packages'] ?? [],
+                $data['selected_addons'] ?? [],
+                floatval($data['custom_discount'] ?? 0)
+            );
+            
+            $analysisNote .= "\n💰 [Pricing Estimation]:\n";
+            foreach ($calc['breakdown']['packages'] as $pkg) {
+                $analysisNote .= "• Package: {$pkg['name']} (" . format_currency($pkg['price']) . ")\n";
+            }
+            foreach ($calc['breakdown']['addons'] as $addon) {
+                $analysisNote .= "• Add-on: {$addon['name']} (" . format_currency($addon['price']) . ")\n";
+            }
+            if ($calc['total_discount'] > 0) {
+                 $analysisNote .= "• Total Discount: -" . format_currency($calc['total_discount']) . " (" . format_currency($calc['auto_discount']) . " auto + " . format_currency($calc['custom_discount']) . " custom)\n";
+            }
+            $analysisNote .= "💰 TOTAL ESTIMATE: " . format_currency($calc['total']) . "\n";
+        }
+
         $analysisNote .= "Quals: " . implode(', ', $qualifications);
 
         $finalNotes = ($data['notes'] ?? '') . $analysisNote;
@@ -528,7 +674,8 @@ class ExhibitionKiosk extends Page implements HasForms
                     ->body("{$customer->name} scored {$score}%.");
 
                 if ($data['send_instant_wa'] ?? false) {
-                     $msg = $data['wa_message'] ?? 'Hi! Terima kasih sudah berkunjung.';
+                     $rawMsg = $data['wa_message'] ?? 'Hi! Terima kasih sudah berkunjung.';
+                     $msg = str_replace('{name}', $data['name'] ?? '', $rawMsg);
                      
                      // Attach Link if selected
                      $attachmentId = $data['wa_attachment_id'] ?? null;
@@ -584,7 +731,12 @@ class ExhibitionKiosk extends Page implements HasForms
                 'wedding_timeline' => null,
                 'pax_estimate' => null,
                 'venue_booked' => false,
+                'selected_packages' => [],
+                'selected_addons' => [],
+                'custom_discount' => 0,
                 'send_instant_wa' => true,
+                'wa_template_id' => null,
+                'wa_message' => auth()->user()->waTemplates()->where('is_active', true)->first()?->message ?? "Hi! Terima kasih sudah mampir ke booth kami. Berikut price list spesial pameran untuk kakak.",
             ]);
             
             $this->dispatch('lead-captured');
@@ -600,67 +752,5 @@ class ExhibitionKiosk extends Page implements HasForms
             \Illuminate\Support\Facades\Log::error('Kiosk Save duplicate/error: ' . $e->getMessage());
         }
     }
-    protected function getPricingData(): array
-    {
-        return [
-            "packages" => [
-                "Digital Invitation" => [
-                    [
-                        "package_name" => "Basic",
-                        "product_id" => 33,
-                        "prices" => ["normal" => 360000, "discounted" => 300000, "base" => 300000],
-                        "image" => "landing/Basic - Digital Invitation.png"
-                    ],
-                    [
-                        "package_name" => "Intimate",
-                        "product_id" => 34,
-                        "prices" => ["normal" => 740000, "discounted" => 670000, "base" => 600000],
-                        "image" => "landing/Intimate - Digital Invitation.png"
-                    ],
-                    [
-                        "package_name" => "Royal",
-                        "product_id" => 35,
-                        "prices" => ["normal" => 900000, "discounted" => 850000, "base" => 760000],
-                        "image" => "landing/Royal - Digital Invitation.png"
-                    ]
-                ],
-                "Buku Tamu Digital" => [
-                    [
-                        "package_name" => "Apps Penerima Tamu",
-                        "product_id" => 36,
-                        "prices" => ["normal" => 2390000, "discounted" => 2100000, "base" => 1890000],
-                        "image" => "landing/Apps Penerima Tamu.png"
-                    ]
-                ],
-                "Live Streaming" => [
-                    [
-                        "package_name" => "Bronze",
-                        "product_id" => 30,
-                        "prices" => ["normal" => 3999000, "discounted" => 3700000, "base" => 3290000],
-                        "image" => "landing/Bronze - Live Streaming.png"
-                    ],
-                    [
-                        "package_name" => "Silver",
-                        "product_id" => 31,
-                        "prices" => ["normal" => 7780000, "discounted" => 5250000, "base" => 4690000],
-                        "image" => "landing/Silver - Live Streaming.png"
-                    ],
-                    [
-                        "package_name" => "Gold",
-                        "product_id" => 32,
-                        "prices" => ["normal" => 10190000, "discounted" => 6250000, "base" => 5590000],
-                        "image" => "landing/Gold - Live Streaming.png"
-                    ]
-                ]
-            ],
-            "addons" => [
-                "usher" => ["label" => "Usher / PIC Acara", "price" => 800000, "unit" => "orang"],
-                "tablet" => ["label" => "Tablet Buku Tamu", "price" => 550000, "unit" => "unit"],
-                "printer" => ["label" => "Printer Label", "price" => 250000, "unit" => "unit"],
-                "combo_extend" => ["label" => "Extend Duration / Combo", "price" => 1300000, "unit" => "paket"],
-                "tv" => ["label" => "TV Display", "price" => 650000, "unit" => "unit"],
-                "domain" => ["label" => "Custom Domain", "price" => 150000, "unit" => "domain / tahun"]
-            ]
-        ];
-    }
+    // Unified pricing data from active PricingConfig
 }
