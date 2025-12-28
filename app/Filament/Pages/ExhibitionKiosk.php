@@ -527,6 +527,26 @@ class ExhibitionKiosk extends Page implements HasForms
     {
         $data = $this->form->getState();
 
+        // HOTFIX: Validate critical fields for accurate lead scoring (ISSUE-H002)
+        if (empty($data['visitor_type'])) {
+            Notification::make()
+                ->danger()
+                ->title('Validation Error')
+                ->body('Please select "Who Visited" to continue. This helps us provide better service.')
+                ->persistent()
+                ->send();
+            return;
+        }
+        
+        if (empty($data['wedding_timeline'])) {
+            Notification::make()
+                ->warning()
+                ->title('Missing Information')
+                ->body('Please select "Wedding Timeline" for accurate quotation and lead scoring.')
+                ->send();
+            // Don't return - allow submission but warn user
+        }
+
         // Calculate Weighted Score
         $score = 0;
         $qualifications = [];
@@ -617,10 +637,27 @@ class ExhibitionKiosk extends Page implements HasForms
                 }
                 
                 try {
-                    $customer = Customer::where('email', $data['email'])
-                        ->orWhere('phone', $data['phone'])
-                        ->lockForUpdate() // Still keep row lock for good measure inside transaction
+                    // HOTFIX: Improved duplicate detection to prevent wrong customer updates (ISSUE-H001)
+                    // Check email and phone separately to avoid updating wrong customer
+                    $customerByEmail = Customer::where('email', $data['email'])
+                        ->lockForUpdate()
                         ->first();
+                    
+                    $customerByPhone = Customer::where('phone', $data['phone'])
+                        ->lockForUpdate()
+                        ->first();
+
+                    // Detect conflict: same email and phone exist but belong to different customers
+                    if ($customerByEmail && $customerByPhone && $customerByEmail->id !== $customerByPhone->id) {
+                        throw new \Exception(
+                            'Data conflict detected: Email belongs to "' . $customerByEmail->name . 
+                            '" but phone belongs to "' . $customerByPhone->name . 
+                            '". Please verify the information.'
+                        );
+                    }
+
+                    // Use email match first (more reliable), fallback to phone match
+                    $customer = $customerByEmail ?? $customerByPhone;
 
                 // Tags to Apply
                 $tagsToApply = ['Exhibition Lead', $qualityTag, 'Wedding2025', $exhibitionTagName];
