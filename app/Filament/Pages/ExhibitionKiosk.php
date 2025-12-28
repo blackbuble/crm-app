@@ -27,15 +27,7 @@ class ExhibitionKiosk extends Page implements HasForms
     
     protected static string $view = 'filament.pages.exhibition-kiosk';
 
-    // Scoring Constants (ISSUE-L001)
-    protected const SCORE_DECISION_MAKER = 15;
-    protected const SCORE_HAS_BUDGET = 15;
-    protected const SCORE_REQUEST_DEMO = 10;
-    protected const SCORE_REQUEST_QUOTATION = 20; // High Intent
-    protected const SCORE_VISITOR_COUPLE = 15;
-    protected const SCORE_VISITOR_WO = 10;
-    protected const SCORE_TIME_URGENT = 25;
-    protected const SCORE_TIME_THIS_YEAR = 15;
+
 
     // Scoring Constants (ISSUE-L001)
     protected const SCORE_DECISION_MAKER = 15;
@@ -81,7 +73,7 @@ class ExhibitionKiosk extends Page implements HasForms
         $this->activeConfig = PricingConfig::where('is_active', true)->first();
 
         $this->fillDefaultValues($activeExhibition?->id);
-        $this->fillDefaultValues($activeExhibition?->id);
+
 
         $this->calculate();
     }
@@ -189,17 +181,7 @@ class ExhibitionKiosk extends Page implements HasForms
                                                 ];
                                                 
                                                 $score = $this->calculateScore($data);
-                                                // ISSUE-L001: Use centralized scoring logic
-                                                $data = [
-                                                    'is_decision_maker' => $get('is_decision_maker'),
-                                                    'has_budget' => $get('has_budget'),
-                                                    'request_demo' => $get('request_demo'),
-                                                    'request_quotation' => $get('request_quotation'),
-                                                    'visitor_type' => $get('visitor_type'),
-                                                    'wedding_timeline' => $get('wedding_timeline'),
-                                                ];
-                                                
-                                                $score = $this->calculateScore($data);
+
 
                                                 $color = match(true) {
                                                     $score >= 75 => 'text-success-600 font-bold',
@@ -449,15 +431,7 @@ class ExhibitionKiosk extends Page implements HasForms
                                                         }
                                                         
                                                         $config = $configCache[$configId];
-                                                        if (!$configId) return null;
 
-                                                        // Use a static cache or request cache to avoid repeated DB calls for the same config
-                                                        static $configCache = [];
-                                                        if (!isset($configCache[$configId])) {
-                                                            $configCache[$configId] = PricingConfig::find($configId);
-                                                        }
-                                                        
-                                                        $config = $configCache[$configId];
                                                         return collect($config?->getAddons() ?? [])->firstWhere('id', $state['addon_id'] ?? null)['name'] ?? null;
                                                     })
                                                     ->afterStateUpdated(fn () => $this->calculate()),
@@ -593,8 +567,7 @@ class ExhibitionKiosk extends Page implements HasForms
         }
 
         // Calculate Weighted Score
-        // Calculate Weighted Score
-        $score = $this->calculateScore($data);
+
         
         // Determine Status & Tag based on Score
         $status = ($score >= 75) ? 'prospect' : 'lead'; 
@@ -608,8 +581,7 @@ class ExhibitionKiosk extends Page implements HasForms
 
         // ISSUE-L006: Use extracted method for logic
         $finalNotes = ($data['notes'] ?? '') . $this->generateAnalysisNote($data, $score, $qualityTag);
-        // ISSUE-L006: Use extracted method for logic
-        $finalNotes = ($data['notes'] ?? '') . $this->generateAnalysisNote($data, $score, $qualityTag);
+
 
         // Get Exhibition Name for Tagging
         $exhibition = Exhibition::find($data['exhibition_id']);
@@ -835,31 +807,7 @@ class ExhibitionKiosk extends Page implements HasForms
             ->title("{$qualityTag} {$actionType}!")
             ->body("{$customer->name} scored {$score}%.");
 
-        if ($data['send_instant_wa'] ?? false) {
-                $rawMsg = $data['wa_message'] ?? 'Hi! Terima kasih sudah berkunjung.';
-                $msg = str_replace('{name}', $data['name'] ?? '', $rawMsg);
-                
-                // Attach Link if selected
-                $attachmentId = $data['wa_attachment_id'] ?? null;
-                if ($attachmentId) {
-                    $attach = \App\Models\MarketingMaterial::find($attachmentId);
-                    // HOTFIX M002: Add file existence check and error handling
-                    if ($attach && $attach->file_path) {
-                        try {
-                            if (Storage::exists($attach->file_path)) {
-                                $link = asset(Storage::url($attach->file_path));
-                                $msg .= "\n\n📄 Download Brochure/Price List: " . $link;
-                            } else {
-                                Log::warning('Marketing material file not found', [
-                                    'material_id' => $attach->id, 
-                                    'file_path' => $attach->file_path
-                                ]);
-                            }
-                        } catch (\Exception $e) {
-                            Log::error('Error checking marketing material file', ['error' => $e->getMessage()]);
-                        }
-                    }
-                }
+
         if ($data['send_instant_wa'] ?? false) {
                 $rawMsg = $data['wa_message'] ?? 'Hi! Terima kasih sudah berkunjung.';
                 $msg = str_replace('{name}', $data['name'] ?? '', $rawMsg);
