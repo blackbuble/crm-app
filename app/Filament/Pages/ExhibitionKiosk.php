@@ -527,6 +527,26 @@ class ExhibitionKiosk extends Page implements HasForms
     {
         $data = $this->form->getState();
 
+        // HOTFIX: Validate critical fields for accurate lead scoring (ISSUE-H002)
+        if (empty($data['visitor_type'])) {
+            Notification::make()
+                ->danger()
+                ->title('Validation Error')
+                ->body('Please select "Who Visited" to continue. This helps us provide better service.')
+                ->persistent()
+                ->send();
+            return;
+        }
+        
+        if (empty($data['wedding_timeline'])) {
+            Notification::make()
+                ->warning()
+                ->title('Missing Information')
+                ->body('Please select "Wedding Timeline" for accurate quotation and lead scoring.')
+                ->send();
+            // Don't return - allow submission but warn user
+        }
+
         // Calculate Weighted Score
         $score = 0;
         $qualifications = [];
@@ -617,10 +637,39 @@ class ExhibitionKiosk extends Page implements HasForms
                 }
                 
                 try {
-                    $customer = Customer::where('email', $data['email'])
-                        ->orWhere('phone', $data['phone'])
-                        ->lockForUpdate() // Still keep row lock for good measure inside transaction
-                        ->first();
+                    // HOTFIX: Improved duplicate detection to prevent wrong customer updates (ISSUE-H001)
+                    // QA FIX: Added null checks and email normalization for edge cases
+                    
+                    // Validate that we have at least email or phone
+                    if (empty($data['email']) && empty($data['phone'])) {
+                        throw new \Exception('Email or phone number is required to create a customer.');
+                    }
+                    
+                    // Normalize email to lowercase for consistent matching
+                    $email = !empty($data['email']) ? strtolower(trim($data['email'])) : null;
+                    $phone = !empty($data['phone']) ? trim($data['phone']) : null;
+                    
+                    // Check email and phone separately to avoid updating wrong customer
+                    $customerByEmail = $email
+                        ? Customer::where('email', $email)->lockForUpdate()->first()
+                        : null;
+                    
+                    $customerByPhone = $phone
+                        ? Customer::where('phone', $phone)->lockForUpdate()->first()
+                        : null;
+
+                    // Detect conflict: same email and phone exist but belong to different customers
+                    if ($customerByEmail && $customerByPhone && $customerByEmail->id !== $customerByPhone->id) {
+                        // QA FIX: Escape customer names to prevent XSS
+                        throw new \Exception(
+                            'Data conflict detected: Email belongs to "' . e($customerByEmail->name) . 
+                            '" but phone belongs to "' . e($customerByPhone->name) . 
+                            '". Please verify the information.'
+                        );
+                    }
+
+                    // Use email match first (more reliable), fallback to phone match
+                    $customer = $customerByEmail ?? $customerByPhone;
 
                 // Tags to Apply
                 $tagsToApply = ['Exhibition Lead', $qualityTag, 'Wedding2025', $exhibitionTagName];
@@ -638,10 +687,11 @@ class ExhibitionKiosk extends Page implements HasForms
                     $actionType = 'Updated';
                 } else {
                     // Create new
+                    // QA FIX: Use normalized email
                     $customer = Customer::create([
                         'name' => $data['name'],
-                        'email' => $data['email'],
-                        'phone' => $data['phone'],
+                        'email' => $email,
+                        'phone' => $phone,
                         'notes' => trim($finalNotes),
                         'status' => $status,
                         'source' => 'Exhibition',

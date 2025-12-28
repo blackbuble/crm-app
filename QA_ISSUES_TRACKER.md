@@ -12,10 +12,12 @@
 **Low**: 8  
 
 **Status**:
-- 🔴 Open: 15
+- 🔴 Open: 13
 - 🟡 In Progress: 0
-- ✅ Fixed: 0
+- ✅ Fixed: 2
 - ⏸️ Deferred: 0
+
+**Latest Update**: 2025-12-28 16:42 - Fixed 2 high priority issues in hotfix branch
 
 ---
 
@@ -28,10 +30,12 @@
 ## 🟠 HIGH PRIORITY ISSUES (P1)
 
 ### ISSUE-H001: Race Condition in Duplicate Prevention
-**Status**: 🔴 Open  
+**Status**: ✅ Fixed (2025-12-28)  
 **Reported**: 2025-12-28  
 **Reporter**: QA Team  
-**Assigned**: [Developer Name]
+**Assigned**: Development Team  
+**Fixed By**: Hotfix Branch `hotfix/qa-high-priority-fixes`  
+**Commit**: b69ec89
 
 **Description**:
 The `orWhere` clause in duplicate detection can match different customers if email and phone belong to different records.
@@ -46,35 +50,48 @@ The `orWhere` clause in duplicate detection can match different customers if ema
 3. Try to create customer C with email: test@a.com, phone: 082222222222
 4. System may update wrong customer
 
-**Proposed Fix**:
+**Implemented Fix**:
 ```php
-// Check email and phone separately
-$customerByEmail = Customer::where('email', $data['email'])->lockForUpdate()->first();
-$customerByPhone = Customer::where('phone', $data['phone'])->lockForUpdate()->first();
+// Separate checks for email and phone to prevent wrong customer updates
+$customerByEmail = Customer::where('email', $data['email'])
+    ->lockForUpdate()
+    ->first();
+    
+$customerByPhone = Customer::where('phone', $data['phone'])
+    ->lockForUpdate()
+    ->first();
 
+// Detect conflict: same email and phone exist but on different records
 if ($customerByEmail && $customerByPhone && $customerByEmail->id !== $customerByPhone->id) {
-    throw new \Exception('Email and phone belong to different customers');
+    throw new \Exception(
+        'Data conflict detected: Email belongs to "' . $customerByEmail->name . 
+        '" but phone belongs to "' . $customerByPhone->name . 
+        '". Please verify the information.'
+    );
 }
 
+// Use email match first (more reliable), fallback to phone match
 $customer = $customerByEmail ?? $customerByPhone;
 ```
 
 **Priority**: P1  
 **Target Fix Date**: 2025-12-30  
-**Actual Fix Date**: -
+**Actual Fix Date**: 2025-12-28 ✅
 
 ---
 
 ### ISSUE-H002: Missing Validation for Required Fields
-**Status**: 🔴 Open  
+**Status**: ✅ Fixed (2025-12-28)  
 **Reported**: 2025-12-28  
 **Reporter**: QA Team  
-**Assigned**: [Developer Name]
+**Assigned**: Development Team  
+**Fixed By**: Hotfix Branch `hotfix/qa-high-priority-fixes`  
+**Commit**: b69ec89
 
 **Description**:
 The `visitor_type` field is marked as required but is in a collapsed section, potentially allowing form submission without it.
 
-**Location**: `app/Filament/Pages/ExhibitionKiosk.php:228`
+**Location**: `app/Filament/Pages/ExhibitionKiosk.php:228, 526`
 
 **Impact**: High - Incomplete data collection, incorrect lead scoring
 
@@ -85,28 +102,39 @@ The `visitor_type` field is marked as required but is in a collapsed section, po
 4. Try to save
 5. Form may submit without visitor_type
 
-**Proposed Fix**:
+**Implemented Fix**:
 ```php
 public function create(): void
 {
     $data = $this->form->getState();
     
-    // Additional validation
+    // HOTFIX: Validate critical fields for accurate lead scoring (ISSUE-H002)
     if (empty($data['visitor_type'])) {
         Notification::make()
             ->danger()
             ->title('Validation Error')
-            ->body('Please select visitor type')
+            ->body('Please select "Who Visited" to continue. This helps us provide better service.')
+            ->persistent()
             ->send();
         return;
     }
+    
+    if (empty($data['wedding_timeline'])) {
+        Notification::make()
+            ->warning()
+            ->title('Missing Information')
+            ->body('Please select "Wedding Timeline" for accurate quotation and lead scoring.')
+            ->send();
+        // Don't return - allow submission but warn user
+    }
+    
     // ... rest of code
 }
 ```
 
 **Priority**: P1  
 **Target Fix Date**: 2025-12-30  
-**Actual Fix Date**: -
+**Actual Fix Date**: 2025-12-28 ✅
 
 ---
 
