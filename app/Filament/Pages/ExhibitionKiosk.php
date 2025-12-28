@@ -12,6 +12,9 @@ use Filament\Forms\Form;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class ExhibitionKiosk extends Page implements HasForms
 {
@@ -56,7 +59,9 @@ class ExhibitionKiosk extends Page implements HasForms
 
         $this->activeConfig = PricingConfig::where('is_active', true)->first();
 
-        $defaultTemplate = auth()->user()->waTemplates()->where('is_active', true)->first()?->message ?? "Hi! Terima kasih sudah mampir ke booth kami. Berikut price list spesial pameran untuk kakak.";
+        // HOTFIX M001: Use config for default message instead of hardcoded value
+        $defaultTemplate = auth()->user()->waTemplates()->where('is_active', true)->first()?->message 
+            ?? config('crm.default_wa_message');
 
         $this->form->fill([
             'exhibition_id' => $activeExhibition?->id,
@@ -319,12 +324,19 @@ class ExhibitionKiosk extends Page implements HasForms
                                                         if (!$configId) return [];
                                                         $config = PricingConfig::find($configId);
                                                         if (!$config) return [];
-                                                        return collect($config->getPackages())->values()->mapWithKeys(function($pkg, $index) {
-                                                            $id = $pkg['id'] ?? 'pkg_'.$index;
-                                                            $name = $pkg['name'] ?? 'Package';
-                                                            $price = isset($pkg['price']) ? ' ('.format_currency($pkg['price']).')' : '';
-                                                            return [$id => $name . $price];
-                                                        })->toArray();
+                                                    // HOTFIX M003: Cache pricing data to improve performance
+                                                    return Cache::remember("pricing_packages_{$configId}", config('crm.cache.pricing_ttl', 3600), function() use ($config) {
+                                                        return collect($config->getPackages())
+                                                            ->take(config('crm.cache.packages_limit', 50))
+                                                            ->values()
+                                                            ->mapWithKeys(function($pkg, $index) {
+                                                                $id = $pkg['id'] ?? 'pkg_'.$index;
+                                                                $name = $pkg['name'] ?? 'Package';
+                                                                $price = isset($pkg['price']) ? ' ('.format_currency($pkg['price']).')' : '';
+                                                                return [$id => $name . $price];
+                                                            })
+                                                            ->toArray();
+                                                    });
                                                     })
                                                     ->live()
                                                     ->afterStateUpdated(fn () => $this->calculate()),
@@ -357,32 +369,36 @@ class ExhibitionKiosk extends Page implements HasForms
                                                                     ->map(fn($n) => strtolower($n))
                                                                     ->all();
 
-                                                                return collect($config->getAddons())
-                                                                    ->filter(function ($addon) use ($packageNames) {
-                                                                        $category = $addon['category'] ?? '';
-                                                                        $addonName = strtolower($addon['name'] ?? '');
-                                                                        $hasStreaming = collect($packageNames)->contains(fn($pn) => str_contains($pn, 'live') || str_contains($pn, 'streaming') || str_contains($pn, 'livestream'));
+                                                                // HOTFIX M003: Cache add-ons data
+                                                                return Cache::remember("pricing_addons_{$configId}_" . md5(json_encode($selectedPackages)), config('crm.cache.pricing_ttl', 3600), function() use ($config, $packageNames) {
+                                                                    return collect($config->getAddons())
+                                                                        ->take(config('crm.cache.addons_limit', 100))
+                                                                        ->filter(function ($addon) use ($packageNames) {
+                                                                            $category = $addon['category'] ?? '';
+                                                                            $addonName = strtolower($addon['name'] ?? '');
+                                                                            $hasStreaming = collect($packageNames)->contains(fn($pn) => str_contains($pn, 'live') || str_contains($pn, 'streaming') || str_contains($pn, 'livestream'));
 
-                                                                        if ($category === 'Live Streaming' || $category === 'Live Cam') return $hasStreaming;
-                                                                        if ($category === 'Combo') {
-                                                                            if (str_contains($addonName, 'live streaming') || str_contains($addonName, 'streaming')) {
-                                                                                if (!$hasStreaming) return false;
-                                                                                if (str_contains($addonName, 'bronze')) return collect($packageNames)->contains(fn($pn) => str_contains($pn, 'bronze'));
-                                                                                if (str_contains($addonName, 'silver')) return collect($packageNames)->contains(fn($pn) => str_contains($pn, 'silver'));
-                                                                                if (str_contains($addonName, 'gold'))   return collect($packageNames)->contains(fn($pn) => str_contains($pn, 'gold'));
+                                                                            if ($category === 'Live Streaming' || $category === 'Live Cam') return $hasStreaming;
+                                                                            if ($category === 'Combo') {
+                                                                                if (str_contains($addonName, 'live streaming') || str_contains($addonName, 'streaming')) {
+                                                                                    if (!$hasStreaming) return false;
+                                                                                    if (str_contains($addonName, 'bronze')) return collect($packageNames)->contains(fn($pn) => str_contains($pn, 'bronze'));
+                                                                                    if (str_contains($addonName, 'silver')) return collect($packageNames)->contains(fn($pn) => str_contains($pn, 'silver'));
+                                                                                    if (str_contains($addonName, 'gold'))   return collect($packageNames)->contains(fn($pn) => str_contains($pn, 'gold'));
+                                                                                }
+                                                                                return !empty($packageNames);
                                                                             }
-                                                                            return !empty($packageNames);
-                                                                        }
-                                                                        return true;
-                                                                    })
-                                                                    ->groupBy('category')
-                                                                    ->map(fn($items) => $items->values()->mapWithKeys(function($a, $i) {
-                                                                        $id = $a['id'] ?? 'addon_'.$i;
-                                                                        $name = $a['name'] ?? 'Add-on';
-                                                                        $price = isset($a['price']) ? ' ('.format_currency($a['price']).')' : '';
-                                                                        return [$id => $name . $price];
-                                                                    }))
-                                                                    ->toArray();
+                                                                            return true;
+                                                                        })
+                                                                        ->groupBy('category')
+                                                                        ->map(fn($items) => $items->values()->mapWithKeys(function($a, $i) {
+                                                                            $id = $a['id'] ?? 'addon_'.$i;
+                                                                            $name = $a['name'] ?? 'Add-on';
+                                                                            $price = isset($a['price']) ? ' ('.format_currency($a['price']).')' : '';
+                                                                            return [$id => $name . $price];
+                                                                        }))
+                                                                        ->toArray();
+                                                                });
                                                             })
                                                             ->required()
                                                             ->live()
@@ -609,6 +625,9 @@ class ExhibitionKiosk extends Page implements HasForms
                 // Prevent Race Condition on Duplicate Entry
                 // Use MySQL Named Lock to serialize requests for the same email/phone
                 // This is necessary because the table lacks unique constraints and we want to prevent duplicates
+                // HOTFIX M004: Added clarifying comments for lock mechanism
+                // Lock key is hashed with md5 to ensure it's a valid MySQL identifier
+                // Parameter binding in DB::scalar prevents SQL injection
                 $lockKey = 'customer_upsert_' . md5(trim(strtolower($data['email'])) . '|' . trim($data['phone']));
                 $lockAcquired = \Illuminate\Support\Facades\DB::scalar("SELECT GET_LOCK(?, 5)", [$lockKey]);
                 
@@ -681,10 +700,30 @@ class ExhibitionKiosk extends Page implements HasForms
                      $attachmentId = $data['wa_attachment_id'] ?? null;
                      if ($attachmentId) {
                          $attach = \App\Models\MarketingMaterial::find($attachmentId);
+                         // HOTFIX M002: Add file existence check and error handling
                          if ($attach && $attach->file_path) {
-                             // Generate full public URL
-                             $link = asset(\Illuminate\Support\Facades\Storage::url($attach->file_path));
-                             $msg .= "\n\n📄 Download Brochure/Price List: " . $link;
+                             try {
+                                 // Check if file exists in storage before adding to message
+                                 if (Storage::exists($attach->file_path)) {
+                                     $link = asset(Storage::url($attach->file_path));
+                                     $msg .= "\n\n📄 Download Brochure/Price List: " . $link;
+                                 } else {
+                                     // Log missing file for admin to fix
+                                     Log::warning('Marketing material file not found', [
+                                         'material_id' => $attach->id,
+                                         'material_title' => $attach->title,
+                                         'file_path' => $attach->file_path,
+                                         'customer_email' => $data['email'] ?? 'unknown',
+                                         'user_id' => auth()->id(),
+                                     ]);
+                                     // Don't add broken link to message
+                                 }
+                             } catch (\Exception $e) {
+                                 Log::error('Error checking marketing material file', [
+                                     'error' => $e->getMessage(),
+                                     'material_id' => $attach->id,
+                                 ]);
+                             }
                          }
                      }
 
@@ -736,20 +775,41 @@ class ExhibitionKiosk extends Page implements HasForms
                 'custom_discount' => 0,
                 'send_instant_wa' => true,
                 'wa_template_id' => null,
-                'wa_message' => auth()->user()->waTemplates()->where('is_active', true)->first()?->message ?? "Hi! Terima kasih sudah mampir ke booth kami. Berikut price list spesial pameran untuk kakak.",
+                // HOTFIX M001: Use config for default message
+                'wa_message' => auth()->user()->waTemplates()->where('is_active', true)->first()?->message 
+                    ?? config('crm.default_wa_message'),
             ]);
             
             $this->dispatch('lead-captured');
 
         } catch (\Exception $e) {
+            // HOTFIX M005: Enhanced error logging with full context
+            Log::error('Exhibition Kiosk Save Error', [
+                'error_message' => $e->getMessage(),
+                'error_code' => $e->getCode(),
+                'stack_trace' => config('crm.logging.log_stack_trace', true) ? $e->getTraceAsString() : null,
+                'user_id' => auth()->id(),
+                'user_email' => auth()->user()->email ?? 'unknown',
+                'user_name' => auth()->user()->name ?? 'unknown',
+                'data' => config('crm.logging.log_user_data', true) ? [
+                    'visitor_name' => $data['name'] ?? 'N/A',
+                    'email' => $data['email'] ?? 'N/A',
+                    'phone' => $data['phone'] ?? 'N/A',
+                    'visitor_type' => $data['visitor_type'] ?? 'N/A',
+                    'wedding_timeline' => $data['wedding_timeline'] ?? 'N/A',
+                    'exhibition_id' => $data['exhibition_id'] ?? 'N/A',
+                ] : null,
+                'timestamp' => now()->toDateTimeString(),
+                'ip_address' => config('crm.logging.log_ip_address', true) ? request()->ip() : null,
+                'user_agent' => request()->userAgent(),
+            ]);
+            
+            // User-friendly notification (don't expose technical details)
             Notification::make()
                 ->danger()
                 ->title('Error Saving Lead')
-                ->body('Something went wrong: ' . $e->getMessage())
+                ->body('Unable to save the lead. Please try again or contact support if the problem persists.')
                 ->send();
-            
-            // Log error for debugging
-            \Illuminate\Support\Facades\Log::error('Kiosk Save duplicate/error: ' . $e->getMessage());
         }
     }
     // Unified pricing data from active PricingConfig
