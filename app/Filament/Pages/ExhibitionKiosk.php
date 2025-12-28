@@ -638,20 +638,32 @@ class ExhibitionKiosk extends Page implements HasForms
                 
                 try {
                     // HOTFIX: Improved duplicate detection to prevent wrong customer updates (ISSUE-H001)
-                    // Check email and phone separately to avoid updating wrong customer
-                    $customerByEmail = Customer::where('email', $data['email'])
-                        ->lockForUpdate()
-                        ->first();
+                    // QA FIX: Added null checks and email normalization for edge cases
                     
-                    $customerByPhone = Customer::where('phone', $data['phone'])
-                        ->lockForUpdate()
-                        ->first();
+                    // Validate that we have at least email or phone
+                    if (empty($data['email']) && empty($data['phone'])) {
+                        throw new \Exception('Email or phone number is required to create a customer.');
+                    }
+                    
+                    // Normalize email to lowercase for consistent matching
+                    $email = !empty($data['email']) ? strtolower(trim($data['email'])) : null;
+                    $phone = !empty($data['phone']) ? trim($data['phone']) : null;
+                    
+                    // Check email and phone separately to avoid updating wrong customer
+                    $customerByEmail = $email
+                        ? Customer::where('email', $email)->lockForUpdate()->first()
+                        : null;
+                    
+                    $customerByPhone = $phone
+                        ? Customer::where('phone', $phone)->lockForUpdate()->first()
+                        : null;
 
                     // Detect conflict: same email and phone exist but belong to different customers
                     if ($customerByEmail && $customerByPhone && $customerByEmail->id !== $customerByPhone->id) {
+                        // QA FIX: Escape customer names to prevent XSS
                         throw new \Exception(
-                            'Data conflict detected: Email belongs to "' . $customerByEmail->name . 
-                            '" but phone belongs to "' . $customerByPhone->name . 
+                            'Data conflict detected: Email belongs to "' . e($customerByEmail->name) . 
+                            '" but phone belongs to "' . e($customerByPhone->name) . 
                             '". Please verify the information.'
                         );
                     }
@@ -675,10 +687,11 @@ class ExhibitionKiosk extends Page implements HasForms
                     $actionType = 'Updated';
                 } else {
                     // Create new
+                    // QA FIX: Use normalized email
                     $customer = Customer::create([
                         'name' => $data['name'],
-                        'email' => $data['email'],
-                        'phone' => $data['phone'],
+                        'email' => $email,
+                        'phone' => $phone,
                         'notes' => trim($finalNotes),
                         'status' => $status,
                         'source' => 'Exhibition',
