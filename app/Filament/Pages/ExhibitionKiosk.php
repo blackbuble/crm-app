@@ -100,7 +100,7 @@ class ExhibitionKiosk extends Page implements HasForms
         return $form
             ->schema([
                 Forms\Components\Section::make('Visitor Details')
-                    ->columns(2)
+                    ->columns(['default' => 1, 'md' => 2])
                     ->schema([
                         Forms\Components\Group::make()
                             ->schema([
@@ -138,7 +138,7 @@ class ExhibitionKiosk extends Page implements HasForms
                                 Forms\Components\Section::make('Smart Scoring (Closing Potential)')
                                     ->description('Check all that apply to calculate lead quality.')
                                     ->schema([
-                                        Forms\Components\Grid::make(2)
+                                        Forms\Components\Grid::make(['default' => 2, 'sm' => 2, 'md' => 2])
                                             ->schema([
                                                 Forms\Components\Checkbox::make('is_decision_maker')
                                                     ->label('👔 Decision Maker')
@@ -197,8 +197,8 @@ class ExhibitionKiosk extends Page implements HasForms
                                                 };
 
                                                 return new \Illuminate\Support\HtmlString(
-                                                    "<div class='flex items-center gap-2 p-2 bg-gray-50 rounded border'>
-                                                        <span class='text-2xl font-black'>{$score}%</span>
+                                                    "<div class='flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded border dark:border-gray-700'>
+                                                        <span class='text-2xl font-black dark:text-gray-100'>{$score}%</span>
                                                         <span class='text-sm {$color}'>{$label}</span>
                                                     </div>"
                                                 );
@@ -208,7 +208,7 @@ class ExhibitionKiosk extends Page implements HasForms
                                 Forms\Components\Section::make('👰 Wedding Profile Analysis')
                                     ->collapsible()
                                     ->schema([
-                                        Forms\Components\Grid::make(2)
+                                        Forms\Components\Grid::make(['default' => 1, 'sm' => 2])
                                             ->schema([
                                                 Forms\Components\Select::make('visitor_type')
                                                     ->label('Siapa yang datang?')
@@ -285,9 +285,9 @@ class ExhibitionKiosk extends Page implements HasForms
                                                 }
                                                 
                                                 return new \Illuminate\Support\HtmlString("
-                                                    <div class='mt-2 p-3 bg-primary-50 rounded-lg border border-primary-100'>
+                                                    <div class='mt-2 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-100 dark:border-primary-800'>
                                                         <div class='font-bold {$color} text-lg'>{$suggestion}</div>
-                                                        <div class='text-xs text-gray-500 mt-1'>Based on: {$pax} pax" . ($venue ? ", venue booked" : ", no venue") . "</div>
+                                                        <div class='text-xs text-gray-500 dark:text-gray-400 mt-1'>Based on: {$pax} pax" . ($venue ? ", venue booked" : ", no venue") . "</div>
                                                     </div>
                                                 ");
                                             }),
@@ -414,7 +414,7 @@ class ExhibitionKiosk extends Page implements HasForms
                                                             ->visible(fn (Forms\Get $get) => str_contains(strtolower($get('addon_id') ?? ''), 'tv'))
                                                             ->live()
                                                             ->afterStateUpdated(fn () => $this->calculate()),
-                                                    ])->columns(3)
+                                                    ])->columns(['default' => 1, 'sm' => 3])
                                                     ->live()
                                                     ->itemLabel(function (array $state, Forms\Get $get): ?string {
                                                         // ISSUE-L008: Fix N+1 Query by using cached activeConfig
@@ -459,12 +459,12 @@ class ExhibitionKiosk extends Page implements HasForms
                                                         if ($calc['custom_discount'] > 0) $details[] = "💰 Extra Disc: -" . format_currency($calc['custom_discount']);
 
                                                         return new \Illuminate\Support\HtmlString("
-                                                            <div class='mt-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200'>
-                                                                <div class='flex justify-between items-center mb-2'>
-                                                                    <span class='text-gray-500 text-sm'>Total Estimate:</span>
-                                                                    <span class='text-2xl font-black text-primary-600'>{$formattedTotal}</span>
+                                                            <div class='mt-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700'>
+                                                                <div class='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-1'>
+                                                                    <span class='text-gray-500 dark:text-gray-400 text-sm'>Total Estimate:</span>
+                                                                    <span class='text-2xl font-black text-primary-600 dark:text-primary-500'>{$formattedTotal}</span>
                                                                 </div>
-                                                                <div class='text-[10px] text-gray-400 leading-tight'>" . implode(' | ', $details) . "</div>
+                                                                <div class='text-[10px] text-gray-400 dark:text-gray-500 leading-tight'>" . implode(' | ', $details) . "</div>
                                                             </div>
                                                         ");
                                                     }),
@@ -567,8 +567,8 @@ class ExhibitionKiosk extends Page implements HasForms
         }
 
         // Calculate Weighted Score
-
-        
+        // Restore missing score calculation
+        $score = $this->calculateScore($data);
         // Determine Status & Tag based on Score
         $status = ($score >= 75) ? 'prospect' : 'lead'; 
         
@@ -952,3 +952,4 @@ class ExhibitionKiosk extends Page implements HasForms
         if (!$value) return '';
         return ucwords(str_replace(['_', '-'], ' ', $value));
     }
+}
